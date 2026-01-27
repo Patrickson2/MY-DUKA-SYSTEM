@@ -214,3 +214,92 @@ myduka/
   - Product
   - Date range
 - Pie charts (optional)
+
+# 📁 MyDuka Project – File & Folder Explanation
+
+## Root Level
+- **myduka/** – Main project folder containing both frontend and backend.
+- **README.md** – Overall project overview, setup instructions, and features.
+- **PROJECT_TRACKER.md** – Tracks tasks, progress, and team responsibilities.
+
+## 🔙 Backend (backend/)
+- **backend/** – Backend API built using FastAPI.
+
+### Backend Core
+- **main.py** – Entry point of the backend application; starts the FastAPI server.
+- **core/config.py** – Stores environment variables and application settings.
+- **core/security.py** – Handles JWT authentication and password hashing.
+- **core/dependencies.py** – Shared dependencies like authentication checks and database sessions.
+
+### Database Models (models/)
+- **models/user.py** – Defines user roles (merchant, admin, clerk) and authentication data.
+- **models/store.py** – Represents stores owned by a merchant.
+- **models/product.py** – Defines product details and pricing.
+- **models/inventory.py** – Tracks stock levels, spoilt items, and payments.
+- **models/supply_request.py** – Handles product supply requests from clerks.
+
+### Data Schemas (schemas/)
+- **schemas/user.py** – Defines request and response formats for user data.
+- **schemas/product.py** – Defines product input and output validation.
+- **schemas/inventory.py** – Defines inventory-related data structures.
+- **schemas/reports.py** – Defines report data formats for analytics.
+
+### API Routes (routes/)
+- **routes/auth.py** – Handles login, registration, and token authentication.
+- **routes/users.py** – Manages admin and clerk user operations.
+- **routes/products.py** – Handles product creation and management.
+- **routes/inventory.py** – Manages stock entries and updates.
+- **routes/reports.py** – Provides report and analytics endpoints.
+- **routes/supply_requests.py** – Handles supply request approvals and rejections.
+
+### Business Logic (services/)
+- **services/email_service.py** – Sends email invitations and notifications.
+- **services/report_service.py** – Generates report calculations and summaries.
+
+### Tests (tests/)
+- **tests/test_auth.py** – Tests authentication and authorization logic.
+- **tests/test_inventory.py** – Tests inventory and stock management features.
+- **tests/test_reports.py** – Tests report generation and analytics logic.
+
+### Backend Support Files
+- **alembic/** – Handles database migrations and schema changes.
+- **requirements.txt** – Lists backend dependencies.
+- **README.md** – Backend setup and API documentation.
+
+## 🎨 Frontend (frontend/)
+- **frontend/** – Frontend React application for user interaction.
+
+### State Management
+- **src/app/store.js** – Configures Redux store for global state management.
+
+### Feature Modules (features/)
+- **features/auth/** – Handles authentication state and logic.
+- **features/inventory/** – Manages inventory UI and state.
+- **features/reports/** – Handles report data and charts.
+- **features/users/** – Manages admins and clerks UI.
+
+### Pages (pages/)
+- **pages/Login.jsx** – User login screen.
+- **pages/Dashboard.jsx** – Main dashboard after login.
+- **pages/Reports.jsx** – Displays graphical reports.
+- **pages/AdminPanel.jsx** – Admin and merchant management panel.
+
+### Reusable Components (components/)
+- **components/Navbar.jsx** – Top navigation bar.
+- **components/Sidebar.jsx** – Side menu for dashboard navigation.
+- **components/Charts.jsx** – Reusable chart components.
+
+### Frontend Services
+- **services/api.js** – Handles API requests and JWT token handling.
+
+### Frontend Tests
+- **tests/auth.test.js** – Tests authentication flows in the UI.
+
+### Frontend Entry & Config
+- **main.jsx** – Entry point for the React application.
+- **tailwind.config.js** – Tailwind CSS configuration.
+- **package.json** – Frontend dependencies and scripts.
+- **README.md** – Frontend setup and usage guide.
+
+## ⚙️ CI/CD
+- **.github/workflows/ci.yml** – GitHub Actions workflow for testing and deployment.
