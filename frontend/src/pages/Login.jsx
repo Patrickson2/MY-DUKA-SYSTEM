@@ -174,9 +174,20 @@ export default function Login() {
               <span className="rounded-full bg-slate-200 px-3 py-1">Admin</span>
               <span className="rounded-full bg-slate-200 px-3 py-1">Clerk</span>
             </div>
-            <div className="mt-4 text-center text-xs text-slate-400">
-              Demo: merchant@myduka.com / merchant123 · admin@myduka.com /
-              admin123 · clerk@myduka.com / clerk123
+            <div className="mt-6 border-t border-slate-200 pt-4 text-xs text-slate-500">
+              <p className="font-semibold text-slate-600">Demo Credentials:</p>
+              <p className="mt-2">
+                <span className="font-semibold">Merchant:</span>{" "}
+                merchant@myduka.com / merchant123
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold">Admin:</span> admin@myduka.com /
+                admin123
+              </p>
+              <p className="mt-1">
+                <span className="font-semibold">Clerk:</span> clerk@myduka.com /
+                clerk123
+              </p>
             </div>
           </div>
         </div>
