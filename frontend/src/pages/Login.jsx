@@ -1,14 +1,45 @@
 import { useState } from "react";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  const credentials = {
+    merchant: {
+      email: "merchant@myduka.com",
+      password: "merchant123",
+      route: "/merchant",
+    },
+    admin: {
+      email: "admin@myduka.com",
+      password: "admin123",
+      route: "/admin",
+    },
+    clerk: {
+      email: "clerk@myduka.com",
+      password: "clerk123",
+      route: "/clerk",
+    },
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Login clicked", { email, password });
+    setError("");
+    const match = Object.values(credentials).find(
+      (user) => user.email === email && user.password === password
+    );
+
+    if (!match) {
+      setError("Invalid email or password. Try the demo credentials.");
+      return;
+    }
+
+    navigate(match.route);
   };
 
   return (
@@ -116,6 +147,12 @@ export default function Login() {
                 </button>
               </div>
 
+              {error ? (
+                <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">
+                  {error}
+                </div>
+              ) : null}
+
               {/* BUTTON */}
               <button
                 type="submit"
@@ -136,6 +173,10 @@ export default function Login() {
               </span>
               <span className="rounded-full bg-slate-200 px-3 py-1">Admin</span>
               <span className="rounded-full bg-slate-200 px-3 py-1">Clerk</span>
+            </div>
+            <div className="mt-4 text-center text-xs text-slate-400">
+              Demo: merchant@myduka.com / merchant123 · admin@myduka.com /
+              admin123 · clerk@myduka.com / clerk123
             </div>
           </div>
         </div>
