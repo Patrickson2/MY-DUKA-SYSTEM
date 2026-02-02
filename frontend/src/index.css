@@ -1,6 +1,5 @@
 @tailwind base;
 @tailwind components;
-<<<<<<< HEAD
 @tailwind utilities;
 
 :root {
@@ -13,6 +12,16 @@ body {
   background: #f6f7fb;
   color: #111827;
 }
-=======
-@tailwind utilities;
->>>>>>> 3ec955d (added features and basic structure of react dependencies)
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
