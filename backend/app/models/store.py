@@ -3,8 +3,12 @@ SQLAlchemy models for Store entity
 """
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from app.core.database import Base
+
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 
 class Store(Base):
@@ -26,8 +30,8 @@ class Store(Base):
     is_active = Column(Boolean, default=True)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     
     # Relationships
     inventory = relationship("Inventory", back_populates="store")

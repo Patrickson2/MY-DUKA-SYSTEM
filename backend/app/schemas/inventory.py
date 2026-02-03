@@ -1,7 +1,7 @@
 """
 Pydantic schemas for Store validation and API responses
 """
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 
@@ -39,8 +39,7 @@ class StoreResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StoreListResponse(BaseModel):
@@ -50,5 +49,4 @@ class StoreListResponse(BaseModel):
     location: str
     is_active: bool
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

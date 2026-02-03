@@ -3,7 +3,7 @@ SQLAlchemy models for User entity
 """
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 from app.core.database import Base
 
@@ -13,6 +13,10 @@ class UserRole(str, enum.Enum):
     SUPERUSER = "superuser"  # Merchant
     ADMIN = "admin"           # Store admin
     CLERK = "clerk"           # Data entry clerk
+
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 
 class User(Base):
@@ -36,8 +40,8 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     
     # Store admin can be assigned to multiple stores
     store_id = Column(Integer, nullable=True)

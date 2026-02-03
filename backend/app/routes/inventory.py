@@ -61,7 +61,7 @@ async def record_inventory(
     db.commit()
     db.refresh(new_inventory)
     
-    return InventoryResponse.from_orm(new_inventory)
+    return InventoryResponse.model_validate(new_inventory)
 
 
 @router.get("/", response_model=List[InventoryResponse])
@@ -92,7 +92,7 @@ async def list_inventory(
         query = query.filter(Inventory.payment_status == payment_status)
     
     records = query.offset(skip).limit(limit).all()
-    return [InventoryResponse.from_orm(record) for record in records]
+    return [InventoryResponse.model_validate(record) for record in records]
 
 
 @router.get("/{inventory_id}", response_model=InventoryResponse)
@@ -119,7 +119,7 @@ async def get_inventory(
             detail="Cannot view other clerks' records"
         )
     
-    return InventoryResponse.from_orm(record)
+    return InventoryResponse.model_validate(record)
 
 
 @router.put("/{inventory_id}", response_model=InventoryResponse)
@@ -161,7 +161,7 @@ async def update_inventory(
     db.commit()
     db.refresh(record)
     
-    return InventoryResponse.from_orm(record)
+    return InventoryResponse.model_validate(record)
 
 
 @router.get("/store/{store_id}/paid")
@@ -179,7 +179,7 @@ async def get_paid_inventory(
         Inventory.payment_status == PaymentStatus.PAID
     ).all()
     
-    return [InventoryResponse.from_orm(record) for record in records]
+    return [InventoryResponse.model_validate(record) for record in records]
 
 
 @router.get("/store/{store_id}/unpaid")
@@ -197,4 +197,4 @@ async def get_unpaid_inventory(
         Inventory.payment_status == PaymentStatus.UNPAID
     ).all()
     
-    return [InventoryResponse.from_orm(record) for record in records]
+    return [InventoryResponse.model_validate(record) for record in records]

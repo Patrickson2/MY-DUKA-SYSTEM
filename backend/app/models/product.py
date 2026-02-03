@@ -2,8 +2,12 @@
 SQLAlchemy models for Product entity
 """
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text
-from datetime import datetime
+from datetime import datetime, timezone
 from app.core.database import Base
+
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 
 class Product(Base):
@@ -25,8 +29,8 @@ class Product(Base):
     is_active = Column(Boolean, default=True)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     
     def __repr__(self):
         return f"<Product(id={self.id}, name={self.name}, sku={self.sku})>"

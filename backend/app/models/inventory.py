@@ -3,9 +3,13 @@ SQLAlchemy models for Inventory entity
 """
 from sqlalchemy import Column, Integer, Float, Boolean, DateTime, ForeignKey, String, Enum
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 from app.core.database import Base
+
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 
 class PaymentStatus(str, enum.Enum):
@@ -41,8 +45,8 @@ class Inventory(Base):
     remarks = Column(String(500), nullable=True)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     
     # Relationships
     product = relationship("Product")

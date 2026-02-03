@@ -45,7 +45,7 @@ async def create_product(
     db.commit()
     db.refresh(new_product)
     
-    return ProductResponse.from_orm(new_product)
+    return ProductResponse.model_validate(new_product)
 
 
 @router.get("/", response_model=List[ProductListResponse])
@@ -65,7 +65,7 @@ async def list_products(
         query = query.filter(Product.is_active == True)
     
     products = query.offset(skip).limit(limit).all()
-    return [ProductListResponse.from_orm(product) for product in products]
+    return [ProductListResponse.model_validate(product) for product in products]
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
@@ -85,7 +85,7 @@ async def get_product(
             detail="Product not found"
         )
     
-    return ProductResponse.from_orm(product)
+    return ProductResponse.model_validate(product)
 
 
 @router.put("/{product_id}", response_model=ProductResponse)
@@ -133,7 +133,7 @@ async def update_product(
     db.commit()
     db.refresh(product)
     
-    return ProductResponse.from_orm(product)
+    return ProductResponse.model_validate(product)
 
 
 @router.delete("/{product_id}")

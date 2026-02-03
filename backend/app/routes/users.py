@@ -49,7 +49,7 @@ async def create_user_by_admin(
     db.commit()
     db.refresh(new_user)
     
-    return UserResponse.from_orm(new_user)
+    return UserResponse.model_validate(new_user)
 
 
 @router.get("/", response_model=List[UserListResponse])
@@ -64,7 +64,7 @@ async def list_users(
     Only admins can view all users
     """
     users = db.query(User).offset(skip).limit(limit).all()
-    return [UserListResponse.from_orm(user) for user in users]
+    return [UserListResponse.model_validate(user) for user in users]
 
 
 @router.get("/{user_id}", response_model=UserResponse)
@@ -84,7 +84,7 @@ async def get_user(
             detail="User not found"
         )
     
-    return UserResponse.from_orm(user)
+    return UserResponse.model_validate(user)
 
 
 @router.put("/{user_id}", response_model=UserResponse)
@@ -125,7 +125,7 @@ async def update_user(
     db.commit()
     db.refresh(user)
     
-    return UserResponse.from_orm(user)
+    return UserResponse.model_validate(user)
 
 
 @router.post("/{user_id}/change-password")

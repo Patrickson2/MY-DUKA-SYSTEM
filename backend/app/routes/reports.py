@@ -37,7 +37,7 @@ async def create_store(
     db.commit()
     db.refresh(new_store)
     
-    return StoreResponse.from_orm(new_store)
+    return StoreResponse.model_validate(new_store)
 
 
 @router.get("/", response_model=List[StoreListResponse])
@@ -57,7 +57,7 @@ async def list_stores(
         query = query.filter(Store.is_active == True)
     
     stores = query.offset(skip).limit(limit).all()
-    return [StoreListResponse.from_orm(store) for store in stores]
+    return [StoreListResponse.model_validate(store) for store in stores]
 
 
 @router.get("/{store_id}", response_model=StoreResponse)
@@ -77,7 +77,7 @@ async def get_store(
             detail="Store not found"
         )
     
-    return StoreResponse.from_orm(store)
+    return StoreResponse.model_validate(store)
 
 
 @router.put("/{store_id}", response_model=StoreResponse)
@@ -116,7 +116,7 @@ async def update_store(
     db.commit()
     db.refresh(store)
     
-    return StoreResponse.from_orm(store)
+    return StoreResponse.model_validate(store)
 
 
 @router.delete("/{store_id}")

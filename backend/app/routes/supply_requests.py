@@ -3,7 +3,7 @@ Supply request management routes
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, check_permission
 from app.models.user import User
@@ -59,7 +59,7 @@ async def create_supply_request(
     db.commit()
     db.refresh(new_request)
     
-    return SupplyRequestResponse.from_orm(new_request)
+    return SupplyRequestResponse.model_validate(new_request)
 
 
 @router.get("/", response_model=List[SupplyRequestResponse])
@@ -94,7 +94,7 @@ async def list_supply_requests(
         query = query.filter(SupplyRequest.store_id == store_id)
     
     requests = query.offset(skip).limit(limit).all()
-    return [SupplyRequestResponse.from_orm(req) for req in requests]
+    return [SupplyRequestResponse.model_validate(req) for req in requests]
 
 
 @router.get("/{request_id}", response_model=SupplyRequestResponse)
@@ -121,7 +121,7 @@ async def get_supply_request(
             detail="Cannot view other clerks' requests"
         )
     
-    return SupplyRequestResponse.from_orm(supply_request)
+    return SupplyRequestResponse.model_validate(supply_request)
 
 
 @router.post("/{request_id}/approve")
@@ -151,14 +151,14 @@ async def approve_supply_request(
     
     supply_request.status = SupplyRequestStatus.APPROVED
     supply_request.admin_notes = approval_data.admin_notes
-    supply_request.approved_at = datetime.utcnow()
+    supply_request.approved_at = datetime.now(timezone.utc)
     
     db.commit()
     db.refresh(supply_request)
     
     return {
         "message": "Supply request approved successfully",
-        "request": SupplyRequestResponse.from_orm(supply_request)
+        "request": SupplyRequestResponse.model_validate(supply_request)
     }
 
 
@@ -189,14 +189,14 @@ async def decline_supply_request(
     
     supply_request.status = SupplyRequestStatus.DECLINED
     supply_request.admin_notes = decline_data.admin_notes
-    supply_request.approved_at = datetime.utcnow()
+    supply_request.approved_at = datetime.now(timezone.utc)
     
     db.commit()
     db.refresh(supply_request)
     
     return {
         "message": "Supply request declined successfully",
-        "request": SupplyRequestResponse.from_orm(supply_request)
+        "request": SupplyRequestResponse.model_validate(supply_request)
     }
 
 
@@ -219,4 +219,4 @@ async def get_pending_requests(
             SupplyRequest.status == SupplyRequestStatus.PENDING
         ).all()
     
-    return [SupplyRequestResponse.from_orm(req) for req in requests]
+    return [SupplyRequestResponse.model_validate(req) for req in requests]

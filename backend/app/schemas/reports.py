@@ -1,7 +1,7 @@
 """
 Pydantic schemas for Inventory and SupplyRequest validation
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
@@ -57,8 +57,7 @@ class InventoryResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ===== Supply Request Schemas =====
@@ -94,8 +93,7 @@ class SupplyRequestResponse(BaseModel):
     updated_at: datetime
     approved_at: Optional[datetime]
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AdminDashboardStats(BaseModel):

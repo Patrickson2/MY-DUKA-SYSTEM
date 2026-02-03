@@ -3,9 +3,13 @@ SQLAlchemy models for Supply Request entity
 """
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Enum
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 from app.core.database import Base
+
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 
 class SupplyRequestStatus(str, enum.Enum):
@@ -39,8 +43,8 @@ class SupplyRequest(Base):
     admin_notes = Column(Text, nullable=True)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     approved_at = Column(DateTime, nullable=True)
     
     # Relationships

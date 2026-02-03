@@ -1,7 +1,7 @@
 """
 Pydantic schemas for User validation and API responses
 """
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 from enum import Enum
@@ -67,8 +67,7 @@ class UserResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserListResponse(BaseModel):
@@ -81,8 +80,7 @@ class UserListResponse(BaseModel):
     is_active: bool
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ===== Auth Schemas =====

@@ -51,7 +51,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        user=UserResponse.from_orm(new_user)
+        user=UserResponse.model_validate(new_user)
     )
 
 
@@ -83,7 +83,7 @@ async def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
-        user=UserResponse.from_orm(user)
+        user=UserResponse.model_validate(user)
     )
 
 
@@ -93,4 +93,4 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
     Get current logged-in user info
     Requires valid JWT token
     """
-    return UserResponse.from_orm(current_user)
+    return UserResponse.model_validate(current_user)
