@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     
     # Pagination
     items_per_page: int = 10
+    seed_demo_users: bool = True
     
     class Config:
         env_file = ".env"

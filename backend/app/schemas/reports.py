@@ -2,7 +2,7 @@
 Pydantic schemas for Inventory and SupplyRequest validation
 """
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional
 from datetime import datetime
 from enum import Enum
 
@@ -96,3 +96,110 @@ class SupplyRequestResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class AdminDashboardStats(BaseModel):
+    active_clerks: int
+    pending_requests: int
+    unpaid_products: int
+    store_value: float
+
+
+class AdminSupplyRequestItem(BaseModel):
+    id: int
+    product: str
+    quantity: int
+    requested_by: str
+    date: datetime
+    notes: Optional[str]
+    status: str
+
+
+class AdminPaymentStatusItem(BaseModel):
+    inventory_id: int
+    product: str
+    supplier: Optional[str] = None
+    stock: int
+    buy_price: float
+    payment_status: str
+
+
+class ClerkListItem(BaseModel):
+    id: int
+    name: str
+    email: str
+    joined_date: datetime
+    status: str
+
+
+class AdminDashboardResponse(BaseModel):
+    stats: AdminDashboardStats
+    supply_requests: List[AdminSupplyRequestItem]
+    payment_status: List[AdminPaymentStatusItem]
+    clerks: List[ClerkListItem]
+
+
+class ClerkDashboardStats(BaseModel):
+    total_products: int
+    total_stock: int
+    spoilt_items: int
+
+
+class ClerkProductItem(BaseModel):
+    inventory_id: int
+    product: str
+    category: Optional[str]
+    stock: int
+    spoil: int
+    buy_price: float
+    sell_price: float
+    payment_status: str
+
+
+class ClerkDashboardResponse(BaseModel):
+    stats: ClerkDashboardStats
+    products: List[ClerkProductItem]
+
+
+class MerchantDashboardStats(BaseModel):
+    active_stores: int
+    active_admins: int
+    total_products: int
+    estimated_revenue: float
+
+
+class MerchantPerformanceItem(BaseModel):
+    product: str
+    sales: float
+    profit: float
+
+
+class MerchantPaymentSummary(BaseModel):
+    paid_amount: float
+    unpaid_amount: float
+    paid_percentage: float
+    unpaid_percentage: float
+
+
+class MerchantStoreItem(BaseModel):
+    id: int
+    name: str
+    location: str
+    admin_name: Optional[str]
+    status: str
+
+
+class MerchantAdminItem(BaseModel):
+    id: int
+    name: str
+    email: str
+    store: Optional[str]
+    status: str
+
+
+class MerchantDashboardResponse(BaseModel):
+    stats: MerchantDashboardStats
+    performance: List[MerchantPerformanceItem]
+    payment_summary: MerchantPaymentSummary
+    stores: List[MerchantStoreItem]
+    admins: List[MerchantAdminItem]

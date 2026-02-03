@@ -5,18 +5,25 @@ Main FastAPI Application Entry Point
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.core.database import Base, engine
+from app.core.database import Base, SessionLocal, engine
+from app.services.seed_service import seed_demo_users
 
 # Import all models to register them with SQLAlchemy
 from app.models import user, product, store, inventory, supply_request
 
 # Import routers
 from app.routes import auth, users, products, inventory as inventory_routes
-from app.routes import supply_requests, reports
+from app.routes import dashboard, reports, supply_requests
 
 # Create database tables (only if database is available)
 try:
     Base.metadata.create_all(bind=engine)
+    if settings.seed_demo_users:
+        db = SessionLocal()
+        try:
+            seed_demo_users(db)
+        finally:
+            db.close()
 except Exception as e:
     print(f"Warning: Could not create database tables: {e}")
     print("Make sure PostgreSQL is running and the database credentials are correct.")
@@ -47,6 +54,7 @@ app.include_router(products.router)
 app.include_router(inventory_routes.router)
 app.include_router(supply_requests.router)
 app.include_router(reports.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/")
