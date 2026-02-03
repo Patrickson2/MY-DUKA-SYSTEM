@@ -3,6 +3,7 @@ Security utilities for JWT token handling and password hashing
 """
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import uuid4
 from jose import JWTError, jwt
 import bcrypt
 from fastapi import HTTPException, status
@@ -37,7 +38,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
             minutes=settings.access_token_expire_minutes
         )
     
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "typ": "access"})
     
     encoded_jwt = jwt.encode(
         to_encode,
@@ -52,8 +53,9 @@ def create_refresh_token(data: dict) -> str:
     to_encode = data.copy()
     if "sub" in to_encode:
         to_encode["sub"] = str(to_encode["sub"])
+    to_encode["jti"] = uuid4().hex
     expire = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "typ": "refresh"})
     
     encoded_jwt = jwt.encode(
         to_encode,
@@ -63,7 +65,7 @@ def create_refresh_token(data: dict) -> str:
     return encoded_jwt
 
 
-def verify_token(token: str) -> dict:
+def verify_token(token: str, expected_type: Optional[str] = "access") -> dict:
     """Verify and decode a JWT token"""
     try:
         payload = jwt.decode(
@@ -72,11 +74,18 @@ def verify_token(token: str) -> dict:
             algorithms=[settings.algorithm]
         )
         user_id = payload.get("sub")
+        token_type = payload.get("typ")
 
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if expected_type and token_type != expected_type:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token type",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         try:

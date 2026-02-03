@@ -50,3 +50,53 @@ async def test_login_with_invalid_credentials_returns_401(client, user_factory):
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid email or password"
+
+
+async def test_refresh_token_rotates_and_returns_new_tokens(client, user_factory):
+    user_factory(email="admin@myduka.com", role="admin", password="admin123")
+
+    login = await client.post(
+        "/api/auth/login",
+        json={"email": "admin@myduka.com", "password": "admin123"},
+    )
+    assert login.status_code == 200
+    old_refresh = login.json()["refresh_token"]
+
+    refresh = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": old_refresh},
+    )
+    assert refresh.status_code == 200
+    payload = refresh.json()
+    assert payload["access_token"]
+    assert payload["refresh_token"]
+    assert payload["refresh_token"] != old_refresh
+
+    refresh_old = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": old_refresh},
+    )
+    assert refresh_old.status_code == 401
+
+
+async def test_logout_revokes_refresh_token(client, user_factory):
+    user_factory(email="clerk@myduka.com", role="clerk", password="clerk12345")
+
+    login = await client.post(
+        "/api/auth/login",
+        json={"email": "clerk@myduka.com", "password": "clerk12345"},
+    )
+    assert login.status_code == 200
+    refresh_token = login.json()["refresh_token"]
+
+    logout = await client.post(
+        "/api/auth/logout",
+        json={"refresh_token": refresh_token},
+    )
+    assert logout.status_code == 200
+
+    refresh = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": refresh_token},
+    )
+    assert refresh.status_code == 401

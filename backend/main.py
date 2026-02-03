@@ -9,7 +9,7 @@ from app.core.database import Base, SessionLocal, engine
 from app.services.seed_service import seed_demo_users
 
 # Import all models to register them with SQLAlchemy
-from app.models import user, product, store, inventory, supply_request
+from app.models import inventory, product, refresh_token, store, supply_request, user
 
 # Import routers
 from app.routes import auth, users, products, inventory as inventory_routes
@@ -17,6 +17,8 @@ from app.routes import dashboard, reports, supply_requests
 
 # Create database tables (only if database is available)
 try:
+    if not settings.debug and settings.secret_key == "your-secret-key-change-this-in-production":
+        raise RuntimeError("SECRET_KEY must be set in non-debug environments.")
     Base.metadata.create_all(bind=engine)
     if settings.seed_demo_users:
         db = SessionLocal()
@@ -41,7 +43,7 @@ app = FastAPI(
 # Configure CORS (allow frontend to communicate)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # React dev servers
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

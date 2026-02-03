@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
+    refresh_token_reuse_grace_seconds: int = 0
     
     # Email Settings (optional - for later implementation)
     smtp_server: str = "smtp.gmail.com"
@@ -32,8 +33,17 @@ class Settings(BaseSettings):
     # Pagination
     items_per_page: int = 10
     seed_demo_users: bool = True
+    cors_origins_raw: str = "http://localhost:3000,http://localhost:5173"
     
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [
+            origin.strip()
+            for origin in self.cors_origins_raw.split(",")
+            if origin.strip()
+        ]
 
 
 settings = Settings()

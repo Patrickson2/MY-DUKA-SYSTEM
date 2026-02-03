@@ -170,6 +170,9 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
 
+# CORS
+CORS_ORIGINS_RAW=http://localhost:3000,http://localhost:5173
+
 # Email (optional)
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
@@ -180,6 +183,19 @@ EMAIL_FROM=noreply@myduka.com
 
 ```env
 DATABASE_URL=sqlite:///./myduka.db
+```
+
+### Database Migrations (Alembic)
+
+```bash
+# create a new migration
+alembic revision --autogenerate -m "describe change"
+
+# apply migrations
+alembic upgrade head
+
+# rollback one migration
+alembic downgrade -1
 ```
 
 ---
@@ -239,6 +255,28 @@ Content-Type: application/json
 ```http
 GET /api/auth/me
 Authorization: Bearer {access_token}
+```
+
+#### Refresh Access Token
+
+```http
+POST /api/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs..."
+}
+```
+
+#### Logout (Revoke Refresh Token)
+
+```http
+POST /api/auth/logout
+Content-Type: application/json
+
+{
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs..."
+}
 ```
 
 ---
