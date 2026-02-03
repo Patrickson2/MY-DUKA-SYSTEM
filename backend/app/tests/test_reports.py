@@ -47,6 +47,26 @@ async def test_clerk_cannot_create_store(client, user_factory, auth_headers):
     assert response.status_code == 403
 
 
+async def test_admin_store_scope_blocks_other_store_access(client, db, user_factory, auth_headers):
+    admin = user_factory(email="scoped-admin@myduka.com", role="admin")
+    first_store = Store(name="A", location="Nairobi")
+    second_store = Store(name="B", location="Mombasa")
+    db.add(first_store)
+    db.add(second_store)
+    db.commit()
+    db.refresh(first_store)
+    db.refresh(second_store)
+
+    admin.store_id = first_store.id
+    db.commit()
+
+    allowed = await client.get(f"/api/stores/{first_store.id}", headers=auth_headers(admin))
+    denied = await client.get(f"/api/stores/{second_store.id}", headers=auth_headers(admin))
+
+    assert allowed.status_code == 200
+    assert denied.status_code == 403
+
+
 def _seed_basic_dashboard_data(db, clerk_user, suffix="A"):
     store = Store(name="Downtown Store", location="Nairobi")
     product = Product(

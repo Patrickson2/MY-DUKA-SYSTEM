@@ -81,3 +81,18 @@ def check_permission(required_role: str):
         return current_user
     
     return verify_role
+
+
+def enforce_store_scope(current_user, resource_store_id: Optional[int]) -> None:
+    """
+    Enforce that store-scoped admins can only access resources in their store.
+    Superusers bypass this check.
+    """
+    if current_user.role == "superuser":
+        return
+    if current_user.role == "admin" and current_user.store_id is not None:
+        if resource_store_id is None or current_user.store_id != resource_store_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot access resources outside your assigned store",
+            )

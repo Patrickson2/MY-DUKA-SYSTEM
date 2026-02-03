@@ -17,3 +17,6 @@ pnpm-debug.log*
 # OS
 .DS_Store
 frontend/node_modules/
+
+# Local DB
+*.db

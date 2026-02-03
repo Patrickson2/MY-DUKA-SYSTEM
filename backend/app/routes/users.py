@@ -1,10 +1,12 @@
 """
 User management routes
 """
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, check_permission
+from app.core.dependencies import check_permission, enforce_store_scope, get_current_user
 from app.core.security import hash_password, verify_password
 from app.models.user import User, UserRole
 from app.schemas.user import (
@@ -14,6 +16,7 @@ from app.schemas.user import (
 from typing import List
 
 router = APIRouter(prefix="/api/users", tags=["users"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/create", response_model=UserResponse)
@@ -34,6 +37,17 @@ async def create_user_by_admin(
             detail="Email already registered"
         )
     
+    if current_user.role == "admin":
+        if user_data.role == UserRole.SUPERUSER:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin cannot create superuser accounts",
+            )
+        if current_user.store_id is not None:
+            if user_data.store_id is None:
+                user_data.store_id = current_user.store_id
+            enforce_store_scope(current_user, user_data.store_id)
+
     # Create new user
     new_user = User(
         email=user_data.email,
@@ -48,6 +62,12 @@ async def create_user_by_admin(
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    logger.info(
+        "User created actor_id=%s created_user_id=%s role=%s",
+        current_user.id,
+        new_user.id,
+        new_user.role,
+    )
     
     return UserResponse.model_validate(new_user)
 
@@ -63,7 +83,10 @@ async def list_users(
     List all users in the system
     Only admins can view all users
     """
-    users = db.query(User).offset(skip).limit(limit).all()
+    query = db.query(User)
+    if current_user.role == "admin" and current_user.store_id is not None:
+        query = query.filter(User.store_id == current_user.store_id)
+    users = query.offset(skip).limit(limit).all()
     return [UserListResponse.model_validate(user) for user in users]
 
 
@@ -84,6 +107,7 @@ async def get_user(
             detail="User not found"
         )
     
+    enforce_store_scope(current_user, user.store_id)
     return UserResponse.model_validate(user)
 
 
@@ -100,7 +124,7 @@ async def update_user(
     Admins can update any user
     """
     # Check permissions
-    if current_user.id != user_id and current_user.role != UserRole.ADMIN:
+    if current_user.id != user_id and current_user.role not in (UserRole.ADMIN, "admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot update other users"
@@ -125,6 +149,7 @@ async def update_user(
     db.commit()
     db.refresh(user)
     
+    logger.info("User updated actor_id=%s target_user_id=%s", current_user.id, user.id)
     return UserResponse.model_validate(user)
 
 
@@ -189,6 +214,12 @@ async def deactivate_user(
     user.is_active = deactivate_data.is_active
     db.commit()
     db.refresh(user)
+    logger.info(
+        "User status changed actor_id=%s target_user_id=%s active=%s",
+        current_user.id,
+        user.id,
+        user.is_active,
+    )
     
     status_text = "activated" if deactivate_data.is_active else "deactivated"
     return {"message": f"User {status_text} successfully"}
@@ -214,5 +245,9 @@ async def delete_user(
     
     db.delete(user)
     db.commit()
+    logger.info("User deleted actor_id=%s target_user_id=%s", current_user.id, user_id)
     
     return {"message": "User deleted successfully"}
+    enforce_store_scope(current_user, user.store_id)
+    enforce_store_scope(current_user, user.store_id)
+    enforce_store_scope(current_user, user.store_id)

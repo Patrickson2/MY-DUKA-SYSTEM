@@ -1,11 +1,13 @@
 """
 Supply request management routes
 """
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, check_permission
+from app.core.dependencies import check_permission, enforce_store_scope, get_current_user
 from app.models.user import User
 from app.models.supply_request import SupplyRequest, SupplyRequestStatus
 from app.models.product import Product
@@ -17,6 +19,7 @@ from app.schemas.reports import (
 from typing import List
 
 router = APIRouter(prefix="/api/supply-requests", tags=["supply_requests"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/", response_model=SupplyRequestResponse)
@@ -58,6 +61,12 @@ async def create_supply_request(
     db.add(new_request)
     db.commit()
     db.refresh(new_request)
+    logger.info(
+        "Supply request created user_id=%s request_id=%s store_id=%s",
+        current_user.id,
+        new_request.id,
+        new_request.store_id,
+    )
     
     return SupplyRequestResponse.model_validate(new_request)
 
@@ -121,6 +130,7 @@ async def get_supply_request(
             detail="Cannot view other clerks' requests"
         )
     
+    enforce_store_scope(current_user, supply_request.store_id)
     return SupplyRequestResponse.model_validate(supply_request)
 
 
@@ -155,6 +165,11 @@ async def approve_supply_request(
     
     db.commit()
     db.refresh(supply_request)
+    logger.info(
+        "Supply request approved actor_id=%s request_id=%s",
+        current_user.id,
+        supply_request.id,
+    )
     
     return {
         "message": "Supply request approved successfully",
@@ -193,6 +208,11 @@ async def decline_supply_request(
     
     db.commit()
     db.refresh(supply_request)
+    logger.info(
+        "Supply request declined actor_id=%s request_id=%s",
+        current_user.id,
+        supply_request.id,
+    )
     
     return {
         "message": "Supply request declined successfully",
@@ -220,3 +240,6 @@ async def get_pending_requests(
         ).all()
     
     return [SupplyRequestResponse.model_validate(req) for req in requests]
+    enforce_store_scope(current_user, store.id)
+    enforce_store_scope(current_user, supply_request.store_id)
+    enforce_store_scope(current_user, supply_request.store_id)

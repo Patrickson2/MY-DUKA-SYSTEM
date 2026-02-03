@@ -2,6 +2,9 @@
 Authentication routes for user login and registration
 """
 from datetime import datetime, timezone
+import logging
+import time
+from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -19,9 +22,17 @@ from app.schemas.user import (
 )
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
+logger = logging.getLogger(__name__)
+
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_WINDOW_SECONDS = 300
+LOGIN_LOCK_SECONDS = 300
+FAILED_LOGIN_ATTEMPTS = defaultdict(list)
+LOCKED_UNTIL = {}
 
 
 def _store_refresh_token(db: Session, refresh_token: str, user_id: int) -> None:
+    _cleanup_expired_refresh_tokens(db)
     payload = verify_token(refresh_token, expected_type="refresh")
     exp = payload.get("exp")
     jti = payload.get("jti")
@@ -39,6 +50,12 @@ def _store_refresh_token(db: Session, refresh_token: str, user_id: int) -> None:
             revoked=False,
         )
     )
+    db.commit()
+
+
+def _cleanup_expired_refresh_tokens(db: Session) -> None:
+    now_utc_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.query(RefreshToken).filter(RefreshToken.expires_at < now_utc_naive).delete()
     db.commit()
 
 
@@ -89,10 +106,29 @@ async def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     Login with email and password
     Returns access and refresh tokens
     """
+    now = time.time()
+    locked_until = LOCKED_UNTIL.get(credentials.email, 0)
+    if locked_until > now:
+        retry_after = int(locked_until - now)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many failed login attempts. Try again in {retry_after}s",
+        )
+
+    FAILED_LOGIN_ATTEMPTS[credentials.email] = [
+        timestamp
+        for timestamp in FAILED_LOGIN_ATTEMPTS[credentials.email]
+        if now - timestamp <= LOGIN_WINDOW_SECONDS
+    ]
+
     # Find user by email
     user = db.query(User).filter(User.email == credentials.email).first()
     
     if not user or not verify_password(credentials.password, user.hashed_password):
+        FAILED_LOGIN_ATTEMPTS[credentials.email].append(now)
+        if len(FAILED_LOGIN_ATTEMPTS[credentials.email]) >= MAX_LOGIN_ATTEMPTS:
+            LOCKED_UNTIL[credentials.email] = now + LOGIN_LOCK_SECONDS
+        logger.warning("Failed login attempt for email=%s", credentials.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
@@ -103,7 +139,11 @@ async def login(credentials: LoginRequest, db: Session = Depends(get_db)):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is deactivated"
         )
+
+    FAILED_LOGIN_ATTEMPTS.pop(credentials.email, None)
+    LOCKED_UNTIL.pop(credentials.email, None)
     
+    logger.info("Successful login user_id=%s role=%s", user.id, user.role)
     return _issue_token_response(db, user)
 
 
@@ -148,6 +188,7 @@ async def refresh_access_token(
             detail="User not found or inactive",
         )
     db.commit()
+    logger.info("Refresh token rotated user_id=%s", user_id)
     return _issue_token_response(db, user)
 
 
@@ -164,5 +205,6 @@ async def logout(payload: RefreshTokenRequest, db: Session = Depends(get_db)):
     if stored_token:
         stored_token.revoked = True
         db.commit()
+        logger.info("Refresh token revoked token_jti=%s", token_jti)
 
     return {"message": "Logged out successfully"}

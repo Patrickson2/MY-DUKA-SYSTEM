@@ -4,7 +4,7 @@ Inventory management routes for recording stock
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, check_permission
+from app.core.dependencies import check_permission, enforce_store_scope, get_current_user
 from app.models.user import User
 from app.models.inventory import Inventory, PaymentStatus
 from app.models.product import Product
@@ -82,6 +82,8 @@ async def list_inventory(
     # If clerk, only show their records
     if current_user.role == "clerk":
         query = query.filter(Inventory.created_by == current_user.id)
+    elif current_user.role == "admin" and current_user.store_id is not None:
+        query = query.filter(Inventory.store_id == current_user.store_id)
     
     # Filter by store if provided
     if store_id:
@@ -119,6 +121,7 @@ async def get_inventory(
             detail="Cannot view other clerks' records"
         )
     
+    enforce_store_scope(current_user, record.store_id)
     return InventoryResponse.model_validate(record)
 
 
@@ -178,6 +181,7 @@ async def get_paid_inventory(
         Inventory.store_id == store_id,
         Inventory.payment_status == PaymentStatus.PAID
     ).all()
+    enforce_store_scope(current_user, store_id)
     
     return [InventoryResponse.model_validate(record) for record in records]
 
@@ -196,5 +200,8 @@ async def get_unpaid_inventory(
         Inventory.store_id == store_id,
         Inventory.payment_status == PaymentStatus.UNPAID
     ).all()
+    enforce_store_scope(current_user, store_id)
     
     return [InventoryResponse.model_validate(record) for record in records]
+    enforce_store_scope(current_user, store.id)
+    enforce_store_scope(current_user, record.store_id)

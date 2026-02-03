@@ -4,7 +4,7 @@ Store management routes
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, check_permission
+from app.core.dependencies import check_permission, enforce_store_scope, get_current_user
 from app.models.user import User
 from app.models.store import Store
 from app.schemas.inventory import (
@@ -77,6 +77,7 @@ async def get_store(
             detail="Store not found"
         )
     
+    enforce_store_scope(current_user, store.id)
     return StoreResponse.model_validate(store)
 
 
@@ -141,3 +142,5 @@ async def delete_store(
     db.commit()
     
     return {"message": "Store deleted successfully"}
+    enforce_store_scope(current_user, store.id)
+    enforce_store_scope(current_user, store.id)
