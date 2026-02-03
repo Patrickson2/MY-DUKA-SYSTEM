@@ -1,45 +1,36 @@
 import { useState } from "react";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { authApi, getDashboardRoute, saveAuthSession } from "../services/api";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  const credentials = {
-    merchant: {
-      email: "merchant@myduka.com",
-      password: "merchant123",
-      route: "/merchant",
-    },
-    admin: {
-      email: "admin@myduka.com",
-      password: "admin123",
-      route: "/admin",
-    },
-    clerk: {
-      email: "clerk@myduka.com",
-      password: "clerk123",
-      route: "/clerk",
-    },
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    const match = Object.values(credentials).find(
-      (user) => user.email === email && user.password === password
-    );
+    setIsSubmitting(true);
 
-    if (!match) {
-      setError("Invalid email or password. Try the demo credentials.");
-      return;
+    try {
+      const response = await authApi.login(email.trim(), password);
+      const { access_token: accessToken, user } = response.data;
+      saveAuthSession(accessToken, user);
+      navigate(getDashboardRoute(user?.role), { replace: true });
+    } catch (requestError) {
+      const detail = requestError?.response?.data?.detail;
+      setError(
+        typeof detail === "string"
+          ? detail
+          : "Login failed. Check your credentials and try again."
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-
-    navigate(match.route);
   };
 
   return (
@@ -179,9 +170,10 @@ export default function Login() {
               {/* BUTTON */}
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="w-full rounded-xl bg-[#63C2B0] py-2.5 text-sm font-semibold text-[#0F172A] shadow-lg shadow-[#63C2B0]/20 hover:shadow-[#63C2B0]/30 hover:scale-[1.02] transition-all duration-200"
               >
-                Log In
+                {isSubmitting ? "Signing In..." : "Log In"}
               </button>
             </form>
 
