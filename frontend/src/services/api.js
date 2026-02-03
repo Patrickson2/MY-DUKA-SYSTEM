@@ -54,6 +54,10 @@ export function clearAuthSession() {
   localStorage.removeItem(USER_KEY);
 }
 
+export function logoutSession() {
+  clearAuthSession();
+}
+
 api.interceptors.request.use((config) => {
   const token = getStoredToken();
   if (token) {
@@ -68,5 +72,17 @@ export const authApi = {
   },
   me() {
     return api.get("/api/auth/me");
+  },
+};
+
+export const reportApi = {
+  adminDashboard() {
+    return api.get("/api/reports/admin/dashboard");
+  },
+  clerkDashboard() {
+    return api.get("/api/reports/clerk/dashboard");
+  },
+  merchantDashboard() {
+    return api.get("/api/reports/merchant/dashboard");
   },
 };

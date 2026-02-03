@@ -1,313 +1,257 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   ClipboardCheck,
   CreditCard,
-  Package,
+  Loader2,
+  LogOut,
   Store,
   Users,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { clearAuthSession, getStoredUser, reportApi } from "../services/api";
+
+const EMPTY_DASHBOARD = {
+  stats: {
+    active_clerks: 0,
+    pending_requests: 0,
+    unpaid_products: 0,
+    store_value: 0,
+  },
+  supply_requests: [],
+  payment_status: [],
+  clerks: [],
+};
+
+const formatCurrency = (amount) =>
+  new Intl.NumberFormat("en-KE", {
+    style: "currency",
+    currency: "KES",
+    maximumFractionDigits: 0,
+  }).format(amount || 0);
+
+const formatDate = (value) =>
+  new Date(value).toLocaleDateString("en-KE", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 
 export default function AdminPanel() {
-  const [supplyRequests] = useState([
-    {
-      product: "Rice - 5kg",
-      quantity: 50,
-      requestedBy: "Mike Clerk",
-      date: "2025-01-26",
-      notes: "Stock running low",
-      status: "Pending",
-    },
-    {
-      product: "Cooking Oil - 2L",
-      quantity: 30,
-      requestedBy: "Mike Clerk",
-      date: "2025-01-25",
-      notes: "High demand",
-      status: "Approved",
-    },
-    {
-      product: "Sugar - 2kg",
-      quantity: 40,
-      requestedBy: "Lucy Clerk",
-      date: "2025-01-27",
-      notes: "Prepare for weekend rush",
-      status: "Pending",
-    },
-  ]);
+  const navigate = useNavigate();
+  const currentUser = useMemo(() => getStoredUser(), []);
+  const [dashboard, setDashboard] = useState(EMPTY_DASHBOARD);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const clerks = [
-    {
-      name: "Mike Clerk",
-      email: "mike@myduka.com",
-      joined: "2025-01-01",
-      status: "Active",
-    },
-    {
-      name: "Lucy Clerk",
-      email: "lucy@myduka.com",
-      joined: "2025-01-10",
-      status: "Active",
-    },
-  ];
+  useEffect(() => {
+    let active = true;
 
-  const paymentStatus = [
+    reportApi
+      .adminDashboard()
+      .then((response) => {
+        if (active) {
+          setDashboard(response.data);
+        }
+      })
+      .catch((requestError) => {
+        if (!active) return;
+        const detail = requestError?.response?.data?.detail;
+        setError(typeof detail === "string" ? detail : "Failed to load admin dashboard.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleLogout = () => {
+    clearAuthSession();
+    navigate("/", { replace: true });
+  };
+
+  const statsCards = [
     {
-      product: "Rice - 5kg",
-      supplier: "Kenya Grains Ltd",
-      stock: 120,
-      price: "KES 450",
-      status: "Paid",
+      title: "Active Clerks",
+      value: dashboard.stats.active_clerks,
+      trend: "Current active users",
+      icon: <Users className="h-5 w-5" />,
     },
     {
-      product: "Cooking Oil - 2L",
-      supplier: "Oil Suppliers Inc",
-      stock: 85,
-      price: "KES 280",
-      status: "Unpaid",
+      title: "Pending Requests",
+      value: dashboard.stats.pending_requests,
+      trend: "Needs review",
+      icon: <ClipboardCheck className="h-5 w-5" />,
     },
     {
-      product: "Sugar - 2kg",
-      supplier: "Sugar Mills Co",
-      stock: 200,
-      price: "KES 180",
-      status: "Paid",
+      title: "Unpaid Products",
+      value: dashboard.stats.unpaid_products,
+      trend: "Payment follow-up",
+      icon: <CreditCard className="h-5 w-5" />,
+    },
+    {
+      title: "Store Value",
+      value: formatCurrency(dashboard.stats.store_value),
+      trend: "Inventory valuation",
+      icon: <Store className="h-5 w-5" />,
     },
   ];
 
   return (
     <div className="min-h-screen bg-[#0F172A]">
-      {/* HEADER */}
-      <div className="bg-[#1E293B] border-b border-[#1E293B]">
-        <div className="mx-auto max-w-6xl px-6 py-5 flex items-center justify-between">
+      <header className="border-b border-[#1E293B] bg-[#111D36]">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-[#1E293B] text-[#E2E8F0] flex items-center justify-center font-bold">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#63C2B0] font-bold text-[#0F172A]">
               M
             </div>
             <div>
-              <p className="text-sm text-[#E2E8F0]/70">MyDuka Admin</p>
-              <h1 className="text-xl font-semibold text-[#E2E8F0]">
-                Store Overview
-              </h1>
+              <p className="text-xs uppercase tracking-wide text-[#63C2B0]">MyDuka</p>
+              <h1 className="text-xl font-semibold text-[#E2E8F0]">Admin Dashboard</h1>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <button className="relative rounded-full border border-[#1E293B] p-2 text-[#E2E8F0]/70 hover:text-[#E2E8F0]">
+            <button className="relative rounded-full border border-[#2B3D63] p-2 text-[#E2E8F0]/70 hover:text-[#E2E8F0]">
               <Bell className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-rose-500" />
             </button>
-            <div className="text-sm text-[#E2E8F0]/70 text-right">
-              Jane Admin <span className="block text-xs">Admin</span>
+            <div className="text-right">
+              <p className="text-sm font-medium text-[#E2E8F0]">
+                {currentUser ? `${currentUser.first_name} ${currentUser.last_name}` : "Admin User"}
+              </p>
+              <p className="text-xs text-[#E2E8F0]/60">Admin</p>
             </div>
+            <button
+              onClick={handleLogout}
+              className="rounded-lg border border-[#2B3D63] p-2 text-[#E2E8F0]/70 hover:bg-[#1E293B] hover:text-[#E2E8F0]"
+              aria-label="Log out"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
           </div>
         </div>
-      </div>
+      </header>
 
       <main className="mx-auto max-w-6xl px-6 py-8 text-[#E2E8F0]">
-        {/* STATS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            title="Active Clerks"
-            value="2"
-            trend="+1 this week"
-            icon={<Users className="h-5 w-5" />}
-          />
-          <StatCard
-            title="Pending Requests"
-            value="2"
-            trend="Needs review"
-            icon={<ClipboardCheck className="h-5 w-5" />}
-          />
-          <StatCard
-            title="Unpaid Products"
-            value="1"
-            trend="1 supplier"
-            icon={<CreditCard className="h-5 w-5" />}
-          />
-          <StatCard
-            title="Store Value"
-            value="KES 149.8K"
-            trend="Estimated"
-            icon={<Store className="h-5 w-5" />}
-          />
+        {loading ? (
+          <div className="flex items-center gap-2 rounded-xl border border-[#223355] bg-[#111D36] px-4 py-3 text-sm">
+            <Loader2 className="h-4 w-4 animate-spin text-[#63C2B0]" />
+            Loading admin data...
+          </div>
+        ) : null}
+        {error ? (
+          <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          {statsCards.map((card) => (
+            <div key={card.title} className="rounded-xl border border-[#223355] bg-[#111D36] p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-[#E2E8F0]/70">{card.title}</p>
+                <span className="rounded-lg bg-[#1A2947] p-2 text-[#63C2B0]">{card.icon}</span>
+              </div>
+              <p className="mt-2 text-2xl font-semibold text-[#E2E8F0]">{card.value}</p>
+              <p className="mt-1 text-xs text-[#E2E8F0]/60">{card.trend}</p>
+            </div>
+          ))}
         </div>
 
-        {/* SUPPLY REQUESTS */}
-        <Section
-          title="Supply Requests"
-          subtitle="Review and approve stock refill requests."
-        >
-        <Table
-          headers={[
-            "Product",
-            "Quantity",
-            "Requested By",
-            "Date",
-            "Notes",
-            "Status",
-            "Actions",
-          ]}
-          emptyMessage="No supply requests at the moment."
-          isEmpty={supplyRequests.length === 0}
-        >
-          {supplyRequests.map((req, idx) => (
-            <tr key={idx} className="border-t border-[#1E293B]">
-              <td className="py-3">{req.product}</td>
-              <td className="py-3">{req.quantity}</td>
-              <td className="py-3">{req.requestedBy}</td>
-              <td className="py-3">{req.date}</td>
-              <td className="py-3">{req.notes}</td>
-              <td className="py-3">
-                <StatusBadge status={req.status} />
-              </td>
-              <td className="py-3">
-                {req.status === "Pending" ? (
-                  <div className="flex items-center gap-2">
-                    <button className="rounded-md bg-[#1E293B] px-3 py-1 text-[#63C2B0]">
-                      Approve
-                    </button>
-                    <button className="rounded-md bg-[#1E293B] px-3 py-1 text-[#63C2B0]">
-                      Decline
-                    </button>
-                  </div>
-                ) : (
-                  "-"
-                )}
-              </td>
-            </tr>
-          ))}
-        </Table>
+        <Section title="Supply Requests" subtitle="Review and approve stock refill requests.">
+          <DataTable
+            headers={["Product", "Quantity", "Requested By", "Date", "Notes", "Status"]}
+            rows={dashboard.supply_requests}
+            renderRow={(item) => (
+              <tr key={item.id} className="border-t border-[#223355]">
+                <td className="py-3">{item.product}</td>
+                <td className="py-3">{item.quantity}</td>
+                <td className="py-3">{item.requested_by}</td>
+                <td className="py-3">{formatDate(item.date)}</td>
+                <td className="py-3">{item.notes || "-"}</td>
+                <td className="py-3">
+                  <StatusBadge status={item.status} />
+                </td>
+              </tr>
+            )}
+            emptyMessage="No supply requests at the moment."
+          />
         </Section>
 
-        {/* PAYMENT STATUS */}
-        <Section
-          title="Product Payment Status"
-          subtitle="Track supplier payments and update status."
-        >
-        <Table
-          headers={[
-            "Product",
-            "Supplier",
-            "Stock",
-            "Buy Price",
-            "Payment Status",
-            "Actions",
-          ]}
-          emptyMessage="No products have been recorded yet."
-          isEmpty={paymentStatus.length === 0}
-        >
-          {paymentStatus.map((item, idx) => (
-            <tr key={idx} className="border-t border-[#1E293B]">
-              <td className="py-3">{item.product}</td>
-              <td className="py-3">{item.supplier}</td>
-              <td className="py-3">{item.stock}</td>
-              <td className="py-3">{item.price}</td>
-              <td className="py-3">
-                <StatusBadge status={item.status} />
-              </td>
-              <td className="py-3">
-                <button className="rounded-md bg-[#1E293B] px-3 py-1 text-[#E2E8F0] hover:opacity-90">
-                  Update
-                </button>
-              </td>
-            </tr>
-          ))}
-        </Table>
+        <Section title="Product Payment Status" subtitle="Track payment status by product inventory entry.">
+          <DataTable
+            headers={["Product", "Stock", "Buy Price", "Payment Status"]}
+            rows={dashboard.payment_status}
+            renderRow={(item) => (
+              <tr key={item.inventory_id} className="border-t border-[#223355]">
+                <td className="py-3">{item.product}</td>
+                <td className="py-3">{item.stock}</td>
+                <td className="py-3">{formatCurrency(item.buy_price)}</td>
+                <td className="py-3">
+                  <StatusBadge status={item.payment_status} />
+                </td>
+              </tr>
+            )}
+            emptyMessage="No inventory payment records yet."
+          />
         </Section>
 
-        {/* CLERK MANAGEMENT */}
-        <Section
-          title="Clerk Management"
-          subtitle="Manage clerk access and assignments."
-          actions={
-            <button className="rounded-md bg-[#63C2B0] px-3 py-1.5 text-sm text-[#0F172A] hover:opacity-90">
-              Add Clerk
-            </button>
-          }
-        >
-        <Table
-          headers={["Name", "Email", "Joined Date", "Status", "Actions"]}
-          emptyMessage="No clerks have been added yet."
-          isEmpty={clerks.length === 0}
-        >
-          {clerks.map((clerk, idx) => (
-            <tr key={idx} className="border-t border-[#1E293B]">
-              <td className="py-3">{clerk.name}</td>
-              <td className="py-3 text-[#E2E8F0]/70">{clerk.email}</td>
-              <td className="py-3">{clerk.joined}</td>
-              <td className="py-3">
-                <StatusBadge status={clerk.status} />
-              </td>
-              <td className="py-3">
-                <button className="rounded-md bg-[#1E293B] px-3 py-1 text-[#63C2B0]">
-                  Deactivate
-                </button>
-              </td>
-            </tr>
-          ))}
-        </Table>
+        <Section title="Clerk Management" subtitle="View assigned clerks and account status.">
+          <DataTable
+            headers={["Name", "Email", "Joined", "Status"]}
+            rows={dashboard.clerks}
+            renderRow={(item) => (
+              <tr key={item.id} className="border-t border-[#223355]">
+                <td className="py-3">{item.name}</td>
+                <td className="py-3 text-[#E2E8F0]/70">{item.email}</td>
+                <td className="py-3">{formatDate(item.joined_date)}</td>
+                <td className="py-3">
+                  <StatusBadge status={item.status} />
+                </td>
+              </tr>
+            )}
+            emptyMessage="No clerks found for this admin."
+          />
         </Section>
       </main>
     </div>
   );
 }
 
-/* ---------- REUSABLE COMPONENTS ---------- */
-
-function StatCard({ title, value, trend, icon }) {
+function Section({ title, subtitle, children }) {
   return (
-    <div className="bg-[#1E293B] p-4 rounded-lg border border-[#1E293B] shadow-sm">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-[#E2E8F0]/70">{title}</p>
-        <span className="rounded-full bg-[#1E293B] p-2 text-[#63C2B0]">
-          {icon}
-        </span>
-      </div>
-      <h2 className="mt-2 text-xl font-bold text-[#63C2B0]">{value}</h2>
-      <p className="mt-1 text-xs text-[#E2E8F0]/60">{trend}</p>
-    </div>
+    <section className="mt-8 rounded-xl border border-[#223355] bg-[#111D36] p-5">
+      <h2 className="text-lg font-semibold text-[#E2E8F0]">{title}</h2>
+      <p className="mt-1 text-sm text-[#E2E8F0]/65">{subtitle}</p>
+      <div className="mt-4">{children}</div>
+    </section>
   );
 }
 
-function Section({ title, children, actions, subtitle }) {
-  return (
-    <div className="bg-[#1E293B] rounded-lg shadow mb-8 p-4 border border-[#1E293B]">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <div>
-          <h3 className="font-semibold text-[#E2E8F0]">{title}</h3>
-          {subtitle ? (
-            <p className="text-sm text-[#E2E8F0]/70">{subtitle}</p>
-          ) : null}
-        </div>
-        {actions ? <div>{actions}</div> : null}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function Table({ headers, children, emptyMessage, isEmpty }) {
+function DataTable({ headers, rows, renderRow, emptyMessage }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full min-w-[650px] text-sm">
         <thead>
-          <tr className="text-left text-[#E2E8F0]/60">
-            {headers.map((h) => (
-              <th key={h} className="pb-2 pr-4">
-                {h}
+          <tr className="text-left text-xs uppercase tracking-wide text-[#E2E8F0]/55">
+            {headers.map((header) => (
+              <th key={header} className="pb-3 pr-4">
+                {header}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {isEmpty ? (
+          {rows.length === 0 ? (
             <tr>
-              <td className="py-6 text-[#E2E8F0]/70" colSpan={headers.length}>
+              <td colSpan={headers.length} className="py-6 text-sm text-[#E2E8F0]/65">
                 {emptyMessage}
               </td>
             </tr>
           ) : (
-            children
+            rows.map(renderRow)
           )}
         </tbody>
       </table>
@@ -316,20 +260,18 @@ function Table({ headers, children, emptyMessage, isEmpty }) {
 }
 
 function StatusBadge({ status }) {
-  const colors = {
-    Pending: "bg-[#1E293B] text-[#63C2B0]",
-    Approved: "bg-[#1E293B] text-[#63C2B0]",
-    Paid: "bg-[#1E293B] text-[#63C2B0]",
-    Unpaid: "bg-[#1E293B] text-[#63C2B0]",
-    Active: "bg-[#1E293B] text-[#63C2B0]",
+  const palette = {
+    Pending: "bg-amber-300/20 text-amber-200",
+    Approved: "bg-emerald-300/20 text-emerald-200",
+    Declined: "bg-rose-300/20 text-rose-200",
+    Paid: "bg-emerald-300/20 text-emerald-200",
+    Unpaid: "bg-rose-300/20 text-rose-200",
+    Active: "bg-emerald-300/20 text-emerald-200",
+    Inactive: "bg-slate-300/20 text-slate-200",
   };
 
   return (
-    <span
-      className={`px-3 py-1 rounded-full text-xs font-medium ${
-        colors[status]
-      }`}
-    >
+    <span className={`rounded-full px-3 py-1 text-xs font-medium ${palette[status] || "bg-[#1A2947] text-[#E2E8F0]"}`}>
       {status}
     </span>
   );
