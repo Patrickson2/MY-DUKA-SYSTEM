@@ -1,305 +1,273 @@
-# MyDuka – Inventory & Reporting System
+# MyDuka - Inventory and Reporting System
 ## Project Documentation
 
-### 1. Project Overview
-MyDuka is a web-based inventory management system designed to help merchants and store admins efficiently track stock, manage procurement payments, and generate insightful reports. The system supports role-based access control and provides real-time data visualization for informed decision-making.
+## 1. Project Overview
+MyDuka is a web-based inventory management system that helps merchants, admins, and clerks manage stock, supply flow, payments, and role-based reporting.
 
-### 2. Problem Statement
-Many small and medium-sized businesses still rely on manual record keeping, which is:
+## 2. Problem Statement
+Many small and medium businesses still use manual inventory records that are:
 - Time-consuming
 - Error-prone
-- Lacks real-time reporting
+- Weak for real-time reporting
 
-This leads to poor decision-making, stock losses, and delayed procurement processes.
+This causes stock mistakes, delayed replenishment, and weaker purchasing decisions.
 
-### 3. Solution
+## 3. Solution
 MyDuka provides:
-- Centralized inventory tracking
+- Centralized inventory and stock updates
 - Role-based dashboards
-- Automated reports (weekly, monthly, yearly)
-- Payment tracking for suppliers
-- Visual analytics using charts and graphs
+- Supply request approval workflow
+- Paid/unpaid supplier tracking
+- Report views and chart-based insights
 
-### 4. User Roles & Permissions
-#### Merchant (Superuser)
-- Initialize admin registration via tokenized email links
-- Activate, deactivate, or delete admin accounts
-- View:
-  - Store-by-store performance reports
-  - Paid vs unpaid products per store
-  - Individual product performance
-  - Visualized reports using graphs
+## 4. Current Implementation Status
+### Implemented
+- Role-based login with JWT access and refresh tokens
+- Session restore (`/api/auth/me`) and logout flow
+- Clerk dashboard with inventory record/create, edit, delete, supply requests
+- Admin dashboard with supply request approval/decline and clerk/user management actions
+- Merchant dashboard with store/admin analytics and invite-link workflow
+- Backend seed service for demo users
+- Backend tests (auth, inventory, reports)
+- Frontend tests (auth, admin panel, clerk dashboard, merchant dashboard)
 
-#### Store Admin
-- Register and manage data entry clerks
-- Approve or decline supply requests
-- Update payment status (paid / unpaid)
-- View:
-  - Clerk performance reports
-  - Paid vs unpaid supplier products
-- Deactivate or delete clerks
+### In Progress or Pending
+- Full email delivery integration for invite links (SMTP provider setup)
+- Production hardening (strict secrets, final CORS domains, deployment env separation)
+- Additional UX polish and non-critical empty-state/report filters
 
-#### Data Entry Clerk
-- Record:
-  - Items received
-  - Items in stock
-  - Spoilt items (expired, broken, etc.)
-  - Buying & selling price
-  - Payment status
-- Request additional stock supply from admin
+## 5. User Roles and Permissions
+### Merchant (Superuser)
+- Create admin invite links
+- Activate/deactivate/delete admin accounts
+- View merchant-level dashboard and payment/performance summaries
 
-### 5. Core Features
-- JWT Authentication
-- Role-based access control
-- Token-based email registration
-- Inventory CRUD operations
-- Supply request workflow
-- Payment tracking
-- Graphical reports (bar & line charts)
-- Pagination on all listing endpoints
-- CI/CD with GitHub Actions
-- Automated testing (frontend & backend)
+### Store Admin
+- Register/manage clerks
+- Approve/decline supply requests
+- Update payment status for inventory items
+- View store-level dashboard and clerk performance metrics
 
-## Recommended Technology Stack (Chosen for You)
-### Backend (API)
+### Data Entry Clerk
+- Record inventory entries
+- Update own inventory entries
+- Mark payment status (based on allowed endpoints)
+- Submit supply requests to admins
+- View own stock stats and records
+
+## 6. Core Features
+- JWT authentication (access + refresh)
+- Role-based authorization
+- Token-based admin invite registration
+- Product and inventory CRUD (role-restricted)
+- Supply request workflow (pending/approved/declined)
+- Dashboard APIs for clerk/admin/merchant
+- Automated tests for frontend and backend
+- CI workflow support
+
+## 7. Technology Stack
+### Backend
 | Purpose | Technology |
 | --- | --- |
 | Framework | FastAPI |
 | Language | Python |
-| Authentication | JWT (Access & Refresh Tokens) |
-| Database | PostgreSQL |
 | ORM | SQLAlchemy |
 | Migrations | Alembic |
-| Email Service | SMTP / SendGrid |
-| Testing | Pytest |
-| API Docs | Swagger (built-in) |
-
-**Why FastAPI?**
-- Faster than Flask
-- Automatic API documentation
-- Async support
-- Production-ready
+| Auth | JWT |
+| Test | Pytest |
+| API Docs | Swagger (`/api/docs`) |
 
 ### Frontend
 | Purpose | Technology |
 | --- | --- |
 | Framework | React (Vite) |
-| State Management | Redux Toolkit |
 | Routing | React Router |
+| State | Redux Toolkit |
 | Styling | Tailwind CSS |
 | Charts | Recharts |
-| Forms | React Hook Form |
-| Auth Handling | JWT + Axios Interceptors |
-| Testing | Jest + React Testing Library |
+| API Client | Axios |
+| Tests | Vitest + Testing Library |
 
-**Why Redux Toolkit?**
-- Cleaner than Context for large apps
-- Better debugging
-- Scales well with complex dashboards
+### Database
+- Default local runtime currently uses SQLite (`backend/myduka.db`)
+- Can be switched to PostgreSQL using environment config
 
-### DevOps & Workflow
-- Gitflow workflow
-- GitHub Actions for CI/CD
-- Automated:
-  - Tests
-  - Linting
-  - Build checks
-- Deployment:
-  - Frontend → Vercel
-  - Backend → Render / Railway
-
-## Project Repository Structure (Single Repo – Required)
-```
+## 8. Repository Structure (Current)
+```text
 myduka/
-│
 ├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── core/
-│   │   │   ├── config.py
-│   │   │   ├── security.py
-│   │   │   └── dependencies.py
-│   │   │
-│   │   ├── models/
-│   │   │   ├── user.py
-│   │   │   ├── store.py
-│   │   │   ├── product.py
-│   │   │   ├── inventory.py
-│   │   │   └── supply_request.py
-│   │   │
-│   │   ├── schemas/
-│   │   │   ├── user.py
-│   │   │   ├── product.py
-│   │   │   ├── inventory.py
-│   │   │   └── reports.py
-│   │   │
-│   │   ├── routes/
-│   │   │   ├── auth.py
-│   │   │   ├── users.py
-│   │   │   ├── products.py
-│   │   │   ├── inventory.py
-│   │   │   ├── reports.py
-│   │   │   └── supply_requests.py
-│   │   │
-│   │   ├── services/
-│   │   │   ├── email_service.py
-│   │   │   └── report_service.py
-│   │   │
-│   │   ├── tests/
-│   │   │   ├── test_auth.py
-│   │   │   ├── test_inventory.py
-│   │   │   └── test_reports.py
-│   │
+│   ├── main.py
+│   ├── alembic.ini
 │   ├── alembic/
+│   ├── app/
+│   │   ├── core/
+│   │   ├── models/
+│   │   ├── routes/
+│   │   ├── schemas/
+│   │   ├── services/
+│   │   └── tests/
 │   ├── requirements.txt
 │   └── README.md
-│
 ├── frontend/
 │   ├── src/
 │   │   ├── app/
-│   │   │   └── store.js
-│   │   │
 │   │   ├── features/
-│   │   │   ├── auth/
-│   │   │   ├── inventory/
-│   │   │   ├── reports/
-│   │   │   └── users/
-│   │   │
 │   │   ├── pages/
-│   │   │   ├── Login.jsx
-│   │   │   ├── Dashboard.jsx
-│   │   │   ├── Reports.jsx
-│   │   │   └── AdminPanel.jsx
-│   │   │
-│   │   ├── components/
-│   │   │   ├── Navbar.jsx
-│   │   │   ├── Sidebar.jsx
-│   │   │   └── Charts.jsx
-│   │   │
 │   │   ├── services/
-│   │   │   └── api.js
-│   │   │
-│   │   ├── tests/
-│   │   │   └── auth.test.js
-│   │   │
-│   │   └── main.jsx
-│   │
-│   ├── tailwind.config.js
+│   │   └── tests/
+│   ├── public/images/
 │   ├── package.json
 │   └── README.md
-│
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-│
+├── .github/workflows/
 ├── README.md
-└── PROJECT_TRACKER.md
+├── PROJECT_TRACKER.md
+└── PROJECT_DOCUMENTATION.md
 ```
 
-## Testing Strategy
+## 9. Local Setup and Run
 ### Backend
-- Unit tests for auth, inventory, reports
-- Pagination tests on listing endpoints
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Backend docs:
+- Swagger: `http://localhost:8000/api/docs`
+- ReDoc: `http://localhost:8000/api/redoc`
 
 ### Frontend
-- Component rendering tests
-- Auth flow tests
-- Dashboard data rendering tests
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-## Reporting & Visualization
-- Line graphs → stock movement over time
-- Bar graphs → product performance
-- Filters:
-  - Store
-  - Product
-  - Date range
-- Pie charts (optional)
+Frontend app:
+- `http://localhost:5173`
 
-# MyDuka Project – File & Folder Explanation
+## 10. Demo Credentials (Seeded)
+- Merchant: `merchant@myduka.com` / `merchant123`
+- Admin: `admin@myduka.com` / `admin123`
+- Clerk: `clerk@myduka.com` / `clerk123`
 
-## Root Level
-- **myduka/** – Main project folder containing both frontend and backend.
-- **README.md** – Overall project overview, setup instructions, and features.
-- **PROJECT_TRACKER.md** – Tracks tasks, progress, and team responsibilities.
+If credentials are missing, reseed from `backend/`:
+```bash
+source .venv/bin/activate
+python -c "from app.models import user, inventory, product, store, supply_request, refresh_token; from app.core.database import SessionLocal; from app.services.seed_service import seed_demo_users; db=SessionLocal(); seed_demo_users(db); db.close(); print('seeded')"
+```
 
-## Backend (backend/)
-- **backend/** – Backend API built using FastAPI.
+## 11. Environment Configuration
+Important backend settings are in `backend/app/core/config.py` and `.env`:
+- `SECRET_KEY`
+- `DATABASE_URL`
+- `DATABASE_DRIVER`
+- `ACCESS_TOKEN_EXPIRE_MINUTES`
+- `REFRESH_TOKEN_EXPIRE_DAYS`
+- `INVITE_TOKEN_EXPIRE_HOURS`
+- `FRONTEND_BASE_URL`
+- `CORS_ORIGINS_RAW`
+- `SEED_DEMO_USERS`
 
-### Backend Core
-- **main.py** – Entry point of the backend application; starts the FastAPI server.
-- **core/config.py** – Stores environment variables and application settings.
-- **core/security.py** – Handles JWT authentication and password hashing.
-- **core/dependencies.py** – Shared dependencies like authentication checks and database sessions.
+## 12. API Summary
+### Auth (`/api/auth`)
+- `POST /register`
+- `POST /admin-invite/register`
+- `POST /login`
+- `GET /me`
+- `POST /refresh`
+- `POST /logout`
 
-### Database Models (models/)
-- **models/user.py** – Defines user roles (merchant, admin, clerk) and authentication data.
-- **models/store.py** – Represents stores owned by a merchant.
-- **models/product.py** – Defines product details and pricing.
-- **models/inventory.py** – Tracks stock levels, spoilt items, and payments.
-- **models/supply_request.py** – Handles product supply requests from clerks.
+### Users (`/api/users`)
+- `POST /create`
+- `POST /admin-invites`
+- `GET /`
+- `GET /{user_id}`
+- `PUT /{user_id}`
+- `PATCH /{user_id}/deactivate`
+- `DELETE /{user_id}`
 
-### Data Schemas (schemas/)
-- **schemas/user.py** – Defines request and response formats for user data.
-- **schemas/product.py** – Defines product input and output validation.
-- **schemas/inventory.py** – Defines inventory-related data structures.
-- **schemas/reports.py** – Defines report data formats for analytics.
+### Products (`/api/products`)
+- `POST /`
+- `GET /`
+- `GET /{product_id}`
+- `PUT /{product_id}`
+- `DELETE /{product_id}`
 
-### API Routes (routes/)
-- **routes/auth.py** – Handles login, registration, and token authentication.
-- **routes/users.py** – Manages admin and clerk user operations.
-- **routes/products.py** – Handles product creation and management.
-- **routes/inventory.py** – Manages stock entries and updates.
-- **routes/reports.py** – Provides report and analytics endpoints.
-- **routes/supply_requests.py** – Handles supply request approvals and rejections.
+### Inventory (`/api/inventory`)
+- `POST /`
+- `GET /`
+- `GET /{inventory_id}`
+- `PUT /{inventory_id}`
+- `PATCH /{inventory_id}/payment-status`
+- `DELETE /{inventory_id}`
 
-### Business Logic (services/)
-- **services/email_service.py** – Sends email invitations and notifications.
-- **services/report_service.py** – Generates report calculations and summaries.
+### Supply Requests (`/api/supply-requests`)
+- `POST /`
+- `GET /`
+- `GET /{request_id}`
+- `POST /{request_id}/approve`
+- `POST /{request_id}/decline`
+- `GET /pending/all`
 
-### Tests (tests/)
-- **tests/test_auth.py** – Tests authentication and authorization logic.
-- **tests/test_inventory.py** – Tests inventory and stock management features.
-- **tests/test_reports.py** – Tests report generation and analytics logic.
+### Dashboard and Reports (`/api/reports`)
+- `GET /clerk/dashboard`
+- `GET /admin/dashboard`
+- `GET /merchant/dashboard`
 
-### Backend Support Files
-- **alembic/** – Handles database migrations and schema changes.
-- **requirements.txt** – Lists backend dependencies.
-- **README.md** – Backend setup and API documentation.
+### Stores (`/api/stores`)
+- `POST /`
+- `GET /`
+- `GET /{store_id}`
+- `PUT /{store_id}`
+- `DELETE /{store_id}`
 
-## Frontend (frontend/)
-- **frontend/** – Frontend React application for user interaction.
+## 13. Testing Strategy
+### Backend
+```bash
+cd backend
+source .venv/bin/activate
+python -m pytest app/tests -q
+```
+Covers auth, inventory, and reporting flows.
 
-### State Management
-- **src/app/store.js** – Configures Redux store for global state management.
+### Frontend
+```bash
+cd frontend
+npm test -- --run
+```
+Covers auth routing and key dashboard actions.
 
-### Feature Modules (features/)
-- **features/auth/** – Handles authentication state and logic.
-- **features/inventory/** – Manages inventory UI and state.
-- **features/reports/** – Handles report data and charts.
-- **features/users/** – Manages admins and clerks UI.
+## 14. Reporting and Visualization
+- Bar and trend visualizations for performance and stock movement
+- Paid vs unpaid summaries
+- Clerk/admin/merchant role-specific dashboard widgets
 
-### Pages (pages/)
-- **pages/Login.jsx** – User login screen.
-- **pages/Dashboard.jsx** – Main dashboard after login.
-- **pages/Reports.jsx** – Displays graphical reports.
-- **pages/AdminPanel.jsx** – Admin and merchant management panel.
+## 15. Branching and Team Workflow
+- Work on feature branches (for example `frontend/admin`)
+- Keep branch updated from `main` regularly
+- Open PR to `main` after tests pass
+- Avoid committing `node_modules` and local database files
 
-### Reusable Components (components/)
-- **components/Navbar.jsx** – Top navigation bar.
-- **components/Sidebar.jsx** – Side menu for dashboard navigation.
-- **components/Charts.jsx** – Reusable chart components.
+## 16. Deployment Checklist
+Before production deployment:
+- Set strong `SECRET_KEY`
+- Configure production `DATABASE_URL` (PostgreSQL recommended)
+- Configure strict CORS origins
+- Disable demo seeding in production (`SEED_DEMO_USERS=false`)
+- Configure SMTP provider credentials
+- Run tests in CI for frontend and backend
 
-### Frontend Services
-- **services/api.js** – Handles API requests and JWT token handling.
+## 17. Known Issues and Notes
+- `307 Temporary Redirect` on endpoints without trailing slash is expected behavior in FastAPI
+- Some warnings may appear from dependency internals; functional tests should still pass
+- If login fails for seeded users, clear and reseed demo users
 
-### Frontend Tests
-- **tests/auth.test.js** – Tests authentication flows in the UI.
-
-### Frontend Entry & Config
-- **main.jsx** – Entry point for the React application.
-- **tailwind.config.js** – Tailwind CSS configuration.
-- **package.json** – Frontend dependencies and scripts.
-- **README.md** – Frontend setup and usage guide.
-
-## CI/CD
-- **.github/workflows/ci.yml** – GitHub Actions workflow for testing and deployment.
+## 18. Next Features
+- Complete full invite email delivery UX
+- Add richer filtering (store/product/date range) across all dashboards
+- Extend merchant CRUD controls and audit logs
+- Add pagination controls consistently for all long lists in UI
+- Finalize production deployment configs and monitoring
