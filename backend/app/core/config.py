@@ -35,6 +35,7 @@ class Settings(BaseSettings):
 
     # Pagination
     items_per_page: int = 10
+    low_stock_default_threshold: int = 20
     seed_demo_users: bool = True
     cors_origins_raw: str = "http://localhost:3000,http://localhost:5173"
 

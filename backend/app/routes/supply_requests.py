@@ -18,6 +18,10 @@ from app.schemas.reports import (
     SupplyRequestDecline,
     SupplyRequestResponse,
 )
+from app.services.notification_service import (
+    notify_supply_request_pending,
+    notify_supply_request_status,
+)
 
 router = APIRouter(prefix="/api/supply-requests", tags=["supply_requests"])
 logger = logging.getLogger(__name__)
@@ -50,6 +54,15 @@ async def create_supply_request(
     )
 
     db.add(new_request)
+    db.flush()
+    requester_name = f"{current_user.first_name} {current_user.last_name}".strip()
+    notify_supply_request_pending(
+        db,
+        store_id=new_request.store_id,
+        product_id=new_request.product_id,
+        quantity_requested=new_request.quantity_requested,
+        requested_by_name=requester_name,
+    )
     db.commit()
     db.refresh(new_request)
     logger.info("Supply request created user_id=%s request_id=%s", current_user.id, new_request.id)
@@ -120,6 +133,14 @@ async def approve_supply_request(
     supply_request.status = SupplyRequestStatus.APPROVED
     supply_request.admin_notes = approval_data.admin_notes
     supply_request.approved_at = datetime.now(timezone.utc)
+    notify_supply_request_status(
+        db,
+        requester_id=supply_request.requested_by,
+        store_id=supply_request.store_id,
+        product_id=supply_request.product_id,
+        status="approved",
+        admin_notes=approval_data.admin_notes,
+    )
     db.commit()
     db.refresh(supply_request)
 
@@ -146,6 +167,14 @@ async def decline_supply_request(
     supply_request.status = SupplyRequestStatus.DECLINED
     supply_request.admin_notes = decline_data.admin_notes
     supply_request.approved_at = datetime.now(timezone.utc)
+    notify_supply_request_status(
+        db,
+        requester_id=supply_request.requested_by,
+        store_id=supply_request.store_id,
+        product_id=supply_request.product_id,
+        status="declined",
+        admin_notes=decline_data.admin_notes,
+    )
     db.commit()
     db.refresh(supply_request)
 

@@ -138,6 +138,9 @@ export const productsApi = {
   list(params = {}) {
     return api.get("/api/products", { params });
   },
+  create(payload) {
+    return api.post("/api/products", payload);
+  },
 };
 
 export const inventoryApi = {

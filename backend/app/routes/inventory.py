@@ -7,10 +7,17 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.dependencies import check_permission, enforce_store_scope, get_current_user
 from app.models.inventory import Inventory, PaymentStatus
+from app.models.inventory_event import InventoryEvent
 from app.models.product import Product
 from app.models.store import Store
 from app.models.user import User
+from app.schemas.notifications import InventoryEventResponse
 from app.schemas.reports import InventoryCreate, InventoryResponse, InventoryUpdate
+from app.services.notification_service import (
+    create_inventory_event,
+    notify_low_stock_if_needed,
+    notify_unpaid_inventory,
+)
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
@@ -46,6 +53,28 @@ async def record_inventory(
     )
 
     db.add(new_inventory)
+    db.flush()
+    create_inventory_event(
+        db,
+        inventory_id=new_inventory.id,
+        product_id=new_inventory.product_id,
+        store_id=new_inventory.store_id,
+        actor_id=current_user.id,
+        event_type="created",
+        old_quantity_in_stock=None,
+        new_quantity_in_stock=new_inventory.quantity_in_stock,
+        old_payment_status=None,
+        new_payment_status=new_inventory.payment_status,
+        details=new_inventory.remarks,
+    )
+    if new_inventory.payment_status == PaymentStatus.UNPAID.value:
+        notify_unpaid_inventory(
+            db,
+            store_id=new_inventory.store_id,
+            product_id=new_inventory.product_id,
+            quantity_in_stock=new_inventory.quantity_in_stock,
+        )
+    notify_low_stock_if_needed(db, inventory=new_inventory)
     db.commit()
     db.refresh(new_inventory)
     return InventoryResponse.model_validate(new_inventory)
@@ -111,6 +140,8 @@ async def update_inventory(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot update other clerks' records")
 
     enforce_store_scope(current_user, record.store_id)
+    old_stock = record.quantity_in_stock
+    old_payment_status = record.payment_status
 
     if inventory_data.quantity_in_stock is not None:
         record.quantity_in_stock = inventory_data.quantity_in_stock
@@ -121,6 +152,27 @@ async def update_inventory(
     if inventory_data.remarks is not None:
         record.remarks = inventory_data.remarks
 
+    create_inventory_event(
+        db,
+        inventory_id=record.id,
+        product_id=record.product_id,
+        store_id=record.store_id,
+        actor_id=current_user.id,
+        event_type="updated",
+        old_quantity_in_stock=old_stock,
+        new_quantity_in_stock=record.quantity_in_stock,
+        old_payment_status=old_payment_status,
+        new_payment_status=record.payment_status,
+        details=record.remarks,
+    )
+    if record.payment_status == PaymentStatus.UNPAID.value and old_payment_status != PaymentStatus.UNPAID.value:
+        notify_unpaid_inventory(
+            db,
+            store_id=record.store_id,
+            product_id=record.product_id,
+            quantity_in_stock=record.quantity_in_stock,
+        )
+    notify_low_stock_if_needed(db, inventory=record)
     db.commit()
     db.refresh(record)
     return InventoryResponse.model_validate(record)
@@ -143,7 +195,28 @@ async def update_payment_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory record not found")
 
     enforce_store_scope(current_user, record.store_id)
+    old_payment_status = record.payment_status
     record.payment_status = payment_status
+    create_inventory_event(
+        db,
+        inventory_id=record.id,
+        product_id=record.product_id,
+        store_id=record.store_id,
+        actor_id=current_user.id,
+        event_type="payment_status_updated",
+        old_quantity_in_stock=record.quantity_in_stock,
+        new_quantity_in_stock=record.quantity_in_stock,
+        old_payment_status=old_payment_status,
+        new_payment_status=payment_status,
+        details=record.remarks,
+    )
+    if payment_status == PaymentStatus.UNPAID.value and old_payment_status != PaymentStatus.UNPAID.value:
+        notify_unpaid_inventory(
+            db,
+            store_id=record.store_id,
+            product_id=record.product_id,
+            quantity_in_stock=record.quantity_in_stock,
+        )
     db.commit()
     db.refresh(record)
     return InventoryResponse.model_validate(record)
@@ -164,9 +237,44 @@ async def delete_inventory(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot delete other clerks' records")
 
     enforce_store_scope(current_user, record.store_id)
+    create_inventory_event(
+        db,
+        inventory_id=record.id,
+        product_id=record.product_id,
+        store_id=record.store_id,
+        actor_id=current_user.id,
+        event_type="deleted",
+        old_quantity_in_stock=record.quantity_in_stock,
+        new_quantity_in_stock=None,
+        old_payment_status=record.payment_status,
+        new_payment_status=None,
+        details=record.remarks,
+    )
     db.delete(record)
     db.commit()
     return {"message": "Inventory record deleted successfully"}
+
+
+@router.get("/history/product/{product_id}", response_model=List[InventoryEventResponse])
+async def inventory_history_by_product(
+    product_id: int,
+    store_id: int | None = None,
+    limit: int = 100,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List timeline events for stock/payment changes by product."""
+    query = db.query(InventoryEvent).filter(InventoryEvent.product_id == product_id)
+    if store_id is not None:
+        enforce_store_scope(current_user, store_id)
+        query = query.filter(InventoryEvent.store_id == store_id)
+    elif current_user.role == "admin" and current_user.store_id is not None:
+        query = query.filter(InventoryEvent.store_id == current_user.store_id)
+    elif current_user.role == "clerk":
+        query = query.filter(InventoryEvent.actor_id == current_user.id)
+
+    rows = query.order_by(InventoryEvent.created_at.desc()).limit(limit).all()
+    return [InventoryEventResponse.model_validate(row) for row in rows]
 
 
 @router.get("/store/{store_id}/paid", response_model=List[InventoryResponse])

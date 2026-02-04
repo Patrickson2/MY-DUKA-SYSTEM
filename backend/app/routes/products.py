@@ -4,9 +4,11 @@ Product management routes
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import enforce_store_scope, get_current_user
 from app.models.user import User
 from app.models.product import Product
+from app.models.stock_threshold import StockThreshold
+from app.schemas.notifications import StockThresholdResponse, StockThresholdUpsert
 from app.schemas.product import (
     ProductCreate, ProductUpdate, ProductResponse, ProductListResponse
 )
@@ -175,3 +177,84 @@ async def delete_product(
     db.commit()
     
     return {"message": "Product deleted successfully"}
+
+
+@router.get("/{product_id}/thresholds", response_model=List[StockThresholdResponse])
+async def list_product_thresholds(
+    product_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    List low-stock thresholds for a product.
+    """
+    _ = current_user
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
+    query = db.query(StockThreshold).filter(StockThreshold.product_id == product_id)
+    if current_user.role == "admin" and current_user.store_id is not None:
+        query = query.filter(
+            (StockThreshold.store_id == current_user.store_id) | (StockThreshold.store_id.is_(None))
+        )
+    thresholds = query.all()
+    return [StockThresholdResponse.model_validate(row) for row in thresholds]
+
+
+@router.put("/{product_id}/thresholds", response_model=StockThresholdResponse)
+async def upsert_product_threshold(
+    product_id: int,
+    payload: StockThresholdUpsert,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Set/update low-stock threshold for a product (admin/merchant only).
+    """
+    if current_user.role not in {"admin", "superuser"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin or merchant can update thresholds"
+        )
+    if payload.min_quantity < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Threshold must be zero or greater"
+        )
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
+
+    store_scope_id = payload.store_id
+    if store_scope_id is not None:
+        enforce_store_scope(current_user, store_scope_id)
+    elif current_user.role == "admin":
+        store_scope_id = current_user.store_id
+
+    threshold = (
+        db.query(StockThreshold)
+        .filter(
+            StockThreshold.product_id == product_id,
+            StockThreshold.store_id == store_scope_id,
+        )
+        .first()
+    )
+    if not threshold:
+        threshold = StockThreshold(
+            product_id=product_id,
+            store_id=store_scope_id,
+            min_quantity=payload.min_quantity,
+        )
+        db.add(threshold)
+    else:
+        threshold.min_quantity = payload.min_quantity
+
+    db.commit()
+    db.refresh(threshold)
+    return StockThresholdResponse.model_validate(threshold)
