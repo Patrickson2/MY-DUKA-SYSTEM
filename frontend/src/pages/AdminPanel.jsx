@@ -3,6 +3,7 @@
  * Manages clerks, supply request decisions, and supplier payment updates.
  */
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import {
   ClipboardCheck,
   CreditCard,
@@ -12,12 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import PageShell from "../components/PageShell";
-import {
-  inventoryApi,
-  reportApi,
-  supplyRequestsApi,
-  usersApi,
-} from "../services/api";
+import { inventoryApi, reportApi, supplyRequestsApi, usersApi } from "../services/api";
 
 const EMPTY_DASHBOARD = {
   stats: {
@@ -48,6 +44,7 @@ const formatDate = (value) =>
   });
 
 export default function AdminPanel() {
+  const location = useLocation();
   const [dashboard, setDashboard] = useState(EMPTY_DASHBOARD);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
@@ -61,6 +58,7 @@ export default function AdminPanel() {
   const [supplyPage, setSupplyPage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
   const [clerkPage, setClerkPage] = useState(1);
+  const [activeTab, setActiveTab] = useState("register");
   const [clerkForm, setClerkForm] = useState({
     first_name: "",
     last_name: "",
@@ -108,6 +106,7 @@ export default function AdminPanel() {
     setDashboard(response.data);
   };
 
+
   useEffect(() => {
     let active = true;
 
@@ -131,6 +130,13 @@ export default function AdminPanel() {
   useEffect(() => setSupplyPage(1), [requestFilter, requestSearch]);
   useEffect(() => setPaymentPage(1), [paymentFilter]);
   useEffect(() => setClerkPage(1), [clerkSearch]);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get("tab");
+    if (tab && ["register", "requests", "payments", "clerks", "performance"].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [location.search]);
 
   const setTemporaryMessage = (text) => {
     setMessage(text);
@@ -290,6 +296,32 @@ export default function AdminPanel() {
           ))}
         </div>
 
+        <div className="mt-6 rounded-xl border border-[#D1FAE5] bg-white p-3 shadow-sm">
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: "register", label: "Register Clerk" },
+              { id: "requests", label: "Supply Requests" },
+              { id: "payments", label: "Payment Status" },
+              { id: "clerks", label: "Clerk Management" },
+              { id: "performance", label: "Clerk Performance" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                  activeTab === tab.id
+                    ? "bg-[#D1FAE5] text-[#064E3B]"
+                    : "text-[#6B7280] hover:bg-[#F0FDF4]"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {activeTab === "register" ? (
         <Section title="Register Clerk" subtitle="Create data-entry clerk accounts assigned to your store.">
           <form onSubmit={handleCreateClerk} className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <input
@@ -332,7 +364,9 @@ export default function AdminPanel() {
             </button>
           </form>
         </Section>
+        ) : null}
 
+        {activeTab === "requests" ? (
         <Section title="Supply Requests" subtitle="Review and approve stock refill requests.">
           <div className="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
             <input
@@ -407,7 +441,9 @@ export default function AdminPanel() {
           />
           <Pager page={supplyPage} totalPages={supplyPages} onChange={setSupplyPage} />
         </Section>
+        ) : null}
 
+        {activeTab === "payments" ? (
         <Section title="Product Payment Status" subtitle="Track and update supplier payment status.">
           <div className="mb-3 flex gap-3">
             <select
@@ -446,7 +482,9 @@ export default function AdminPanel() {
           />
           <Pager page={paymentPage} totalPages={paymentPages} onChange={setPaymentPage} />
         </Section>
+        ) : null}
 
+        {activeTab === "clerks" ? (
         <Section title="Clerk Management" subtitle="View assigned clerks and account status.">
           <div className="mb-3">
             <input
@@ -501,7 +539,9 @@ export default function AdminPanel() {
           />
           <Pager page={clerkPage} totalPages={clerkPages} onChange={setClerkPage} />
         </Section>
+        ) : null}
 
+        {activeTab === "performance" ? (
         <Section title="Clerk Performance" subtitle="Performance summary for reporting.">
           <DataTable
             headers={["Clerk", "Recorded Entries", "Stock Recorded", "Spoilt Recorded"]}
@@ -517,6 +557,7 @@ export default function AdminPanel() {
             emptyMessage="No clerk performance data yet."
           />
         </Section>
+        ) : null}
     </PageShell>
   );
 }

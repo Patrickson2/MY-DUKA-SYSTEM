@@ -19,6 +19,11 @@ body {
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   background: var(--color-bg);
   color: var(--color-text);
+  filter: saturate(1.05);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 @keyframes float {

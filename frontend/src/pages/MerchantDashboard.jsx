@@ -3,30 +3,8 @@
  * Provides multi-store reporting, admin lifecycle actions, and invite-link onboarding.
  */
 import { useEffect, useMemo, useState } from "react";
-import {
-  BarChart3,
-  Copy,
-  Download,
-  Loader2,
-  MailPlus,
-  Store,
-  Users,
-  Wallet,
-} from "lucide-react";
+import { BarChart3, Download, Loader2, Store, Users, Wallet } from "lucide-react";
 import PageShell from "../components/PageShell";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { reportApi, usersApi } from "../services/api";
 
 const EMPTY_DATA = {
@@ -61,9 +39,6 @@ export default function MerchantDashboard() {
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [inviteForm, setInviteForm] = useState({ email: "", store_id: "" });
-  const [latestInvite, setLatestInvite] = useState("");
-  const [latestInviteExpiry, setLatestInviteExpiry] = useState(null);
   const [adminSearch, setAdminSearch] = useState("");
   const [adminPage, setAdminPage] = useState(1);
 
@@ -114,27 +89,6 @@ export default function MerchantDashboard() {
     window.setTimeout(() => setMessage(""), 2500);
   };
 
-  const handleInviteAdmin = async (event) => {
-    event.preventDefault();
-    setBusyId("invite");
-    setError("");
-    try {
-      const payload = {
-        email: inviteForm.email,
-        store_id: inviteForm.store_id ? Number(inviteForm.store_id) : null,
-      };
-      const response = await usersApi.createAdminInvite(payload);
-      setLatestInvite(response.data.invite_link);
-      setLatestInviteExpiry(response.data.expires_in_hours || null);
-      setMessage("Invite link generated.");
-      setInviteForm({ email: "", store_id: "" });
-    } catch (requestError) {
-      const detail = requestError?.response?.data?.detail;
-      setError(typeof detail === "string" ? detail : "Failed to create admin invite.");
-    } finally {
-      setBusyId(null);
-    }
-  };
 
   const handleAdminStatus = async (admin, isActive) => {
     const nextAction = isActive ? "activate" : "deactivate";
@@ -173,11 +127,6 @@ export default function MerchantDashboard() {
     }
   };
 
-  const copyInviteLink = async () => {
-    if (!latestInvite) return;
-    await navigator.clipboard.writeText(latestInvite);
-    setTemporaryMessage("Invite link copied to clipboard.");
-  };
 
   const exportCsv = () => {
     const rows = [
@@ -233,22 +182,6 @@ export default function MerchantDashboard() {
       color: "text-[#15803D]",
     },
   ];
-
-  const paymentChartData = [
-    {
-      name: "Paid",
-      value: Number(dashboard.payment_summary.paid_percentage || 0).toFixed(2),
-      amount: dashboard.payment_summary.paid_amount,
-      color: "#15803D",
-    },
-    {
-      name: "Unpaid",
-      value: Number(dashboard.payment_summary.unpaid_percentage || 0).toFixed(2),
-      amount: dashboard.payment_summary.unpaid_amount,
-      color: "#DC2626",
-    },
-  ];
-
   return (
     <PageShell title="Merchant Dashboard" subtitle="Multi-store oversight and profitability insights.">
       <div className="flex justify-end">
@@ -288,138 +221,6 @@ export default function MerchantDashboard() {
             </div>
           ))}
         </div>
-
-        <section className="mt-8 rounded-xl border border-[#D1FAE5] bg-white p-5">
-          <h2 className="text-lg font-semibold">Admin Invite Links</h2>
-          <p className="mt-1 text-sm text-[#6B7280]">Create tokenized invite links for new store admins.</p>
-          <form onSubmit={handleInviteAdmin} className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
-            <input
-              type="email"
-              placeholder="new-admin@myduka.com"
-              className="rounded-lg border border-[#D1FAE5] bg-[#F0FDF4] px-3 py-2 text-sm"
-              value={inviteForm.email}
-              onChange={(e) => setInviteForm((prev) => ({ ...prev, email: e.target.value }))}
-              required
-            />
-            <select
-              value={inviteForm.store_id}
-              onChange={(e) => setInviteForm((prev) => ({ ...prev, store_id: e.target.value }))}
-              className="rounded-lg border border-[#D1FAE5] bg-[#F0FDF4] px-3 py-2 text-sm"
-            >
-              <option value="">Assign store (optional)</option>
-              {dashboard.stores.map((store) => (
-                <option key={store.id} value={store.id}>
-                  {store.name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="submit"
-              disabled={busyId === "invite"}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#15803D] px-4 py-2 text-sm font-semibold text-white"
-            >
-              <MailPlus className="h-4 w-4" />
-              {busyId === "invite" ? "Creating..." : "Create Invite"}
-            </button>
-          </form>
-          {latestInvite ? (
-            <div className="mt-4 rounded-lg border border-[#D1FAE5] bg-[#F0FDF4] p-3 text-sm">
-              <p className="break-all text-[#6B7280]">{latestInvite}</p>
-              {latestInviteExpiry ? (
-                <p className="mt-2 text-xs text-[#6B7280]">
-                  Expires in {latestInviteExpiry} hours.
-                </p>
-              ) : null}
-              <button
-                onClick={copyInviteLink}
-                className="mt-2 inline-flex items-center gap-2 rounded bg-[#D1FAE5] px-3 py-1.5 text-xs"
-              >
-                <Copy className="h-3 w-3" />
-                Copy invite link
-              </button>
-            </div>
-          ) : null}
-        </section>
-
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="rounded-xl border border-[#D1FAE5] bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-[#064E3B]">Product Performance</h2>
-            <div className="mt-4 h-72 rounded-lg bg-white p-2">
-              {dashboard.performance.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-sm text-[#6B7280]">
-                  No performance data available.
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dashboard.performance}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#D1FAE5" />
-                    <XAxis dataKey="product" tick={{ fontSize: 12, fill: "#064E3B" }} />
-                    <YAxis tick={{ fontSize: 12, fill: "#064E3B" }} />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="sales" name="Sales (KES)" fill="#15803D" radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="profit" name="Profit (KES)" fill="#34D399" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-[#D1FAE5] bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-[#064E3B]">Payment Status Overview</h2>
-            <div className="mt-4 grid grid-cols-1 items-center gap-6 md:grid-cols-2">
-              <div className="h-56 rounded-lg bg-white p-2">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={paymentChartData} dataKey="value" outerRadius={86} paddingAngle={2}>
-                      {paymentChartData.map((item) => (
-                        <Cell key={item.name} fill={item.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="space-y-4 text-sm">
-                {paymentChartData.map((item) => (
-                  <div key={item.name} className="rounded-lg border border-[#D1FAE5] bg-white p-3">
-                    <p className="text-[#6B7280]">
-                      {item.name} ({item.value}%)
-                    </p>
-                    <p className="text-lg font-semibold" style={{ color: item.color }}>
-                      {formatCurrency(item.amount)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <section className="mt-8 rounded-xl border border-[#D1FAE5] bg-white p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-[#064E3B]">Store-by-Store Performance</h2>
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            {dashboard.stores.length === 0 ? (
-              <p className="text-sm text-[#6B7280]">No stores available yet.</p>
-            ) : (
-              dashboard.stores.map((store) => (
-                <div key={store.id} className="rounded-xl border border-[#D1FAE5] bg-white p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-[#064E3B]">{store.name}</h3>
-                    <StatusBadge status={store.status} />
-                  </div>
-                  <p className="mt-1 text-xs text-[#6B7280]">{store.location}</p>
-                  <p className="mt-2 text-xs text-[#6B7280]">Admin: {store.admin_name || "Unassigned"}</p>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                    <Metric label="Sales" value={formatCurrency(store.sales_total)} />
-                    <Metric label="Paid" value={formatCurrency(store.paid_total)} />
-                    <Metric label="Unpaid" value={formatCurrency(store.unpaid_total)} />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
 
         <section className="mt-8 rounded-xl border border-[#D1FAE5] bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-[#D1FAE5] px-6 py-4">
@@ -504,15 +305,6 @@ function StatusBadge({ status }) {
       ? "bg-[#D1FAE5] text-[#15803D]"
       : "bg-[#D1FAE5] text-[#6B7280]";
   return <span className={`rounded-full px-3 py-1 text-xs font-medium ${classes}`}>{status}</span>;
-}
-
-function Metric({ label, value }) {
-  return (
-    <div className="rounded-lg border border-[#D1FAE5] bg-white p-2">
-      <p className="text-[10px] text-[#6B7280]">{label}</p>
-      <p className="mt-1 text-xs font-semibold text-[#064E3B]">{value}</p>
-    </div>
-  );
 }
 
 function Pager({ page, totalPages, onChange }) {

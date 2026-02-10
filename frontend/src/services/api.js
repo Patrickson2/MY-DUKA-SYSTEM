@@ -87,6 +87,18 @@ export const authApi = {
   login(email, password) {
     return api.post("/api/auth/login", { email, password });
   },
+  registerMerchant(payload) {
+    return api.post("/api/auth/register", payload);
+  },
+  forgotPassword(email) {
+    return api.post("/api/auth/forgot-password", { email });
+  },
+  resetPassword(token, newPassword) {
+    return api.post("/api/auth/reset-password", {
+      token,
+      new_password: newPassword,
+    });
+  },
   registerAdminFromInvite(payload) {
     return api.post("/api/auth/admin-invite/register", payload);
   },
@@ -115,6 +127,30 @@ export const reportApi = {
   },
 };
 
+export const notificationsApi = {
+  list(params = {}) {
+    return api.get("/api/notifications/", { params });
+  },
+  unreadCount() {
+    return api.get("/api/notifications/unread-count");
+  },
+  markRead(notificationId) {
+    return api.patch(`/api/notifications/${notificationId}/read`);
+  },
+  markAllRead() {
+    return api.patch("/api/notifications/read-all");
+  },
+};
+
+export const messagesApi = {
+  recipients() {
+    return api.get("/api/messages/recipients");
+  },
+  send(payload) {
+    return api.post("/api/messages", payload);
+  },
+};
+
 export const usersApi = {
   list(params = {}) {
     return api.get("/api/users", { params });
@@ -137,6 +173,12 @@ export const storesApi = {
   list(params = {}) {
     return api.get("/api/stores/", { params });
   },
+  create(payload) {
+    return api.post("/api/stores/", payload);
+  },
+  remove(storeId) {
+    return api.delete(`/api/stores/${storeId}`);
+  },
 };
 
 export const productsApi = {
@@ -149,6 +191,9 @@ export const productsApi = {
 };
 
 export const inventoryApi = {
+  list(params = {}) {
+    return api.get("/api/inventory/", { params });
+  },
   create(payload) {
     return api.post("/api/inventory", payload);
   },

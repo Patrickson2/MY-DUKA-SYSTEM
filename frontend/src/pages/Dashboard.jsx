@@ -3,6 +3,7 @@
  * Provides inventory recording, supply requesting, and review of clerk-owned records.
  */
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import {
   AlertTriangle,
   Box,
@@ -47,6 +48,7 @@ function getInventoryStatus(stock) {
 }
 
 export default function Dashboard() {
+  const location = useLocation();
   const currentUser = useMemo(() => getStoredUser(), []);
   const [activeForm, setActiveForm] = useState("record");
   const [dashboard, setDashboard] = useState(EMPTY_DATA);
@@ -63,6 +65,7 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [editingInventoryId, setEditingInventoryId] = useState(null);
+  const [activeSection, setActiveSection] = useState("requests");
   const [recordForm, setRecordForm] = useState({
     product_name: "",
     category: "",
@@ -192,6 +195,18 @@ export default function Dashboard() {
       scheduleSecondaryLoad();
     }
   }, [activeForm]);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get("tab");
+    if (tab === "requests") {
+      setActiveSection("requests");
+      setActiveForm("request");
+    }
+    if (tab === "records") {
+      setActiveSection("records");
+      setActiveForm("record");
+    }
+  }, [location.search]);
 
   const setTemporaryMessage = (text) => {
     setMessage(text);
@@ -207,6 +222,9 @@ export default function Dashboard() {
 
     if (!recordForm.product_name.trim()) return "Please enter a product name.";
     if (received < 0 || inStock < 0 || spoilt < 0) return "Quantities cannot be negative.";
+    if (inStock + spoilt > received) {
+      return "Current stock plus spoilt items cannot exceed quantity received.";
+    }
     if (buy <= 0 || sell <= 0) return "Prices must be greater than zero.";
     if (sell < buy) return "Selling price must be greater than or equal to buying price.";
     return "";
@@ -617,7 +635,30 @@ export default function Dashboard() {
           )}
         </div>
 
-        <section className="mt-8 rounded-xl border border-[#D1FAE5] bg-white shadow-sm">
+        <div className="mt-8 rounded-xl border border-[#D1FAE5] bg-white p-3 shadow-sm">
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: "requests", label: "My Requests" },
+              { id: "records", label: "My Recorded Products" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveSection(tab.id)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                  activeSection === tab.id
+                    ? "bg-[#D1FAE5] text-[#064E3B]"
+                    : "text-[#6B7280] hover:bg-[#F0FDF4]"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {activeSection === "requests" ? (
+        <section className="mt-4 rounded-xl border border-[#D1FAE5] bg-white shadow-sm">
           <div className="border-b border-[#D1FAE5] px-6 py-4">
             <h2 className="text-base font-semibold text-[#064E3B]">My Supply Requests</h2>
           </div>
@@ -654,8 +695,10 @@ export default function Dashboard() {
             )}
           </div>
         </section>
+        ) : null}
 
-        <section className="mt-8 rounded-xl border border-[#D1FAE5] bg-white shadow-sm">
+        {activeSection === "records" ? (
+        <section className="mt-4 rounded-xl border border-[#D1FAE5] bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-[#D1FAE5] px-6 py-4">
             <h2 className="text-base font-semibold text-[#064E3B]">My Recorded Products</h2>
             <input
@@ -748,6 +791,7 @@ export default function Dashboard() {
             </div>
           </div>
         </section>
+        ) : null}
     </PageShell>
   );
 }

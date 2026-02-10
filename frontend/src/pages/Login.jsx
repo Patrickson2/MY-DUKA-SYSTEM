@@ -4,7 +4,7 @@
  */
 import { useMemo, useState } from "react";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { authApi, getDashboardRoute, saveAuthSession } from "../services/api";
 
 export default function Login() {
@@ -199,12 +199,12 @@ export default function Login() {
                     Remember me
                   </label>
 
-                  <button
-                    type="button"
+                  <Link
+                    to="/forgot-password"
                     className="text-[#34D399] hover:text-[#34D399] transition-colors"
                   >
                     Forgot password?
-                  </button>
+                  </Link>
                 </div>
               ) : null}
 
@@ -227,7 +227,9 @@ export default function Login() {
             {/* ROLES */}
             <p className="mt-5 text-center text-xs text-[#6B7280]">
               Don&apos;t have an account?{" "}
-              <span className="text-[#34D399] hover:text-[#34D399] cursor-pointer transition-colors">Sign Up</span>
+              <Link to="/signup" className="text-[#34D399] hover:text-[#34D399] transition-colors">
+                Sign Up
+              </Link>
             </p>
             
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">

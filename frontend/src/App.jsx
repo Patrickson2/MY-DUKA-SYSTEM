@@ -2,9 +2,17 @@ import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
+import ForgotPassword from "./pages/ForgotPassword.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
+import Signup from "./pages/Signup.jsx";
 import AdminPanel from "./pages/AdminPanel.jsx";
+import AdminReports from "./pages/AdminReports.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import MerchantDashboard from "./pages/MerchantDashboard.jsx";
+import MerchantInvites from "./pages/MerchantInvites.jsx";
+import MerchantStoreGraphs from "./pages/MerchantStoreGraphs.jsx";
+import MerchantStores from "./pages/MerchantStores.jsx";
+import Messages from "./pages/Messages.jsx";
 import Suppliers from "./pages/Suppliers.jsx";
 import PurchaseOrders from "./pages/PurchaseOrders.jsx";
 import Transfers from "./pages/Transfers.jsx";
@@ -96,11 +104,22 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route
         path="/admin"
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <AdminPanel />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/reports"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminReports />
           </ProtectedRoute>
         }
       />
@@ -117,6 +136,38 @@ export default function App() {
         element={
           <ProtectedRoute allowedRoles={["merchant"]}>
             <MerchantDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/merchant/invites"
+        element={
+          <ProtectedRoute allowedRoles={["merchant"]}>
+            <MerchantInvites />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/merchant/graphs"
+        element={
+          <ProtectedRoute allowedRoles={["merchant"]}>
+            <MerchantStoreGraphs />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/merchant/stores"
+        element={
+          <ProtectedRoute allowedRoles={["merchant"]}>
+            <MerchantStores />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/messages"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "merchant", "clerk"]}>
+            <Messages />
           </ProtectedRoute>
         }
       />
