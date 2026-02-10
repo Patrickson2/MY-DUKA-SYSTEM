@@ -87,6 +87,15 @@ async def admin_dashboard(
         inventory_query = inventory_query.filter(Inventory.store_id == current_user.store_id)
         request_query = request_query.filter(SupplyRequest.store_id == current_user.store_id)
         clerk_query = clerk_query.filter(User.store_id == current_user.store_id)
+    elif current_user.role == "superuser":
+        store_ids = [
+            row.id
+            for row in db.query(Store.id).filter(Store.merchant_id == current_user.id).all()
+        ]
+        if store_ids:
+            inventory_query = inventory_query.filter(Inventory.store_id.in_(store_ids))
+            request_query = request_query.filter(SupplyRequest.store_id.in_(store_ids))
+            clerk_query = clerk_query.filter(User.store_id.in_(store_ids))
 
     active_clerks = clerk_query.filter(User.is_active.is_(True)).count()
     pending_requests = request_query.filter(SupplyRequest.status == "pending").count()
@@ -224,20 +233,25 @@ async def clerk_overview(
             supply_requests=[],
         )
 
-    products = (
-        db.query(Product)
-        .filter(Product.is_active.is_(True))
-        .order_by(Product.name.asc())
-        .limit(200)
-        .all()
-    )
-    stores = (
-        db.query(Store)
-        .filter(Store.is_active.is_(True))
-        .order_by(Store.created_at.desc())
-        .limit(100)
-        .all()
-    )
+    store = db.query(Store).filter(Store.id == current_user.store_id).first()
+    if store:
+        products = (
+            db.query(Product)
+            .filter(Product.is_active.is_(True), Product.merchant_id == store.merchant_id)
+            .order_by(Product.name.asc())
+            .limit(200)
+            .all()
+        )
+        stores = (
+            db.query(Store)
+            .filter(Store.is_active.is_(True), Store.id == store.id)
+            .order_by(Store.created_at.desc())
+            .limit(1)
+            .all()
+        )
+    else:
+        products = []
+        stores = []
     requests = (
         db.query(SupplyRequest)
         .filter(SupplyRequest.requested_by == current_user.id)
@@ -260,11 +274,29 @@ async def merchant_dashboard(
     current_user: User = Depends(check_permission("superuser")),
     db: Session = Depends(get_db),
 ):
-    _ = current_user
-    active_stores = db.query(Store).filter(Store.is_active.is_(True)).count()
-    active_admins = db.query(User).filter(User.role == "admin", User.is_active.is_(True)).count()
-    total_products = db.query(Product).filter(Product.is_active.is_(True)).count()
-    estimated_revenue = _sum_or_zero(db.query(func.sum(Inventory.quantity_in_stock * Inventory.selling_price)).scalar())
+    store_ids = [
+        row.id
+        for row in db.query(Store.id).filter(Store.merchant_id == current_user.id).all()
+    ]
+    active_stores = db.query(Store).filter(
+        Store.is_active.is_(True), Store.merchant_id == current_user.id
+    ).count()
+    active_admins = (
+        db.query(User)
+        .filter(User.role == "admin", User.is_active.is_(True), User.store_id.in_(store_ids))
+        .count()
+        if store_ids
+        else 0
+    )
+    total_products = db.query(Product).filter(
+        Product.is_active.is_(True), Product.merchant_id == current_user.id
+    ).count()
+    estimated_revenue = _sum_or_zero(
+        db.query(func.sum(Inventory.quantity_in_stock * Inventory.selling_price))
+        .join(Store, Store.id == Inventory.store_id)
+        .filter(Store.merchant_id == current_user.id)
+        .scalar()
+    )
 
     performance_rows = (
         db.query(
@@ -273,6 +305,8 @@ async def merchant_dashboard(
             func.sum((Inventory.selling_price - Inventory.buying_price) * Inventory.quantity_in_stock).label("profit"),
         )
         .join(Inventory, Inventory.product_id == Product.id)
+        .join(Store, Store.id == Inventory.store_id)
+        .filter(Store.merchant_id == current_user.id)
         .group_by(Product.id)
         .order_by(func.sum(Inventory.quantity_in_stock * Inventory.selling_price).desc())
         .limit(12)
@@ -291,7 +325,10 @@ async def merchant_dashboard(
                     else_=0,
                 )
             )
-        ).scalar()
+        )
+        .join(Store, Store.id == Inventory.store_id)
+        .filter(Store.merchant_id == current_user.id)
+        .scalar()
     )
     unpaid_amount = _sum_or_zero(
         db.query(
@@ -301,7 +338,10 @@ async def merchant_dashboard(
                     else_=0,
                 )
             )
-        ).scalar()
+        )
+        .join(Store, Store.id == Inventory.store_id)
+        .filter(Store.merchant_id == current_user.id)
+        .scalar()
     )
 
     total_payment = paid_amount + unpaid_amount
@@ -329,12 +369,20 @@ async def merchant_dashboard(
             ).label("unpaid_total"),
         )
         .outerjoin(Inventory, Inventory.store_id == Store.id)
+        .filter(Store.merchant_id == current_user.id)
         .group_by(Store.id)
         .order_by(Store.created_at.desc())
         .all()
     )
 
-    admins = db.query(User).filter(User.role == "admin").order_by(User.created_at.desc()).all()
+    admins = (
+        db.query(User)
+        .filter(User.role == "admin", User.store_id.in_(store_ids))
+        .order_by(User.created_at.desc())
+        .all()
+        if store_ids
+        else []
+    )
     admin_by_store = {admin.store_id: admin for admin in admins if admin.store_id is not None}
     store_name_by_id = {row.id: row.name for row in store_rows}
 

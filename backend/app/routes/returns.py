@@ -30,6 +30,10 @@ async def create_return(
 ):
     if current_user.role == "admin":
         enforce_store_scope(current_user, payload.store_id)
+    if current_user.role == "superuser":
+        store = db.query(Store).filter(Store.id == payload.store_id).first()
+        if not store or store.merchant_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
 
     store = db.query(Store).filter(Store.id == payload.store_id).first()
     if not store:
@@ -64,7 +68,15 @@ async def list_returns(
     if current_user.role == "admin":
         store_id = current_user.store_id
     if store_id is not None:
+        if current_user.role == "superuser":
+            store = db.query(Store).filter(Store.id == store_id).first()
+            if not store or store.merchant_id != current_user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
         query = query.filter(ReturnRequest.store_id == store_id)
+    elif current_user.role == "superuser":
+        query = query.join(Store, Store.id == ReturnRequest.store_id).filter(
+            Store.merchant_id == current_user.id
+        )
     if status_filter:
         query = query.filter(ReturnRequest.status == status_filter.lower())
     records = query.order_by(ReturnRequest.created_at.desc()).all()
@@ -83,6 +95,10 @@ async def update_return_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Return request not found")
     if current_user.role == "admin":
         enforce_store_scope(current_user, record.store_id)
+    if current_user.role == "superuser":
+        store = db.query(Store).filter(Store.id == record.store_id).first()
+        if not store or store.merchant_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Return not in your account")
 
     new_status = payload.status.lower()
     if new_status not in {"pending", "approved", "completed", "rejected"}:

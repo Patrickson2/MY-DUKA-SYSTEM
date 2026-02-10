@@ -22,6 +22,7 @@ async def create_store(
     """Create a new store (merchant only)."""
     _ = current_user
     new_store = Store(
+        merchant_id=current_user.id,
         name=store_data.name,
         location=store_data.location,
         description=store_data.description,
@@ -48,6 +49,8 @@ async def list_stores(
         query = query.filter(Store.is_active.is_(True))
     if current_user.role == "admin" and current_user.store_id is not None:
         query = query.filter(Store.id == current_user.store_id)
+    elif current_user.role == "superuser":
+        query = query.filter(Store.merchant_id == current_user.id)
 
     stores = query.order_by(Store.created_at.desc()).offset(skip).limit(limit).all()
     return [StoreListResponse.model_validate(store) for store in stores]
@@ -64,6 +67,8 @@ async def get_store(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Store not found")
 
     enforce_store_scope(current_user, store.id)
+    if current_user.role == "superuser" and store.merchant_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
     return StoreResponse.model_validate(store)
 
 
@@ -79,6 +84,8 @@ async def update_store(
     store = db.query(Store).filter(Store.id == store_id).first()
     if not store:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Store not found")
+    if store.merchant_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
 
     if store_data.name is not None:
         store.name = store_data.name
@@ -109,6 +116,8 @@ async def delete_store(
     store = db.query(Store).filter(Store.id == store_id).first()
     if not store:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Store not found")
+    if store.merchant_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
 
     db.delete(store)
     db.commit()

@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.models.inventory import Inventory
 from app.models.inventory_event import InventoryEvent
 from app.models.notification import Notification
+from app.models.store import Store
 from app.models.stock_threshold import StockThreshold
 from app.models.user import User
 
@@ -66,11 +67,14 @@ def create_notification(
 
 
 def _get_store_admins_and_superusers(db: Session, store_id: int) -> list[User]:
+    store = db.query(Store).filter(Store.id == store_id).first()
+    merchant_id = store.merchant_id if store else None
     return (
         db.query(User)
         .filter(
             User.is_active.is_(True),
-            ((User.role == "admin") & (User.store_id == store_id)) | (User.role == "superuser"),
+            ((User.role == "admin") & (User.store_id == store_id))
+            | ((User.role == "superuser") & (User.id == merchant_id)),
         )
         .all()
     )

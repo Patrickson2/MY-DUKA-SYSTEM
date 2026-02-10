@@ -41,6 +41,8 @@ async def create_supply_request(
     store = db.query(Store).filter(Store.id == request_data.store_id).first()
     if not store:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Store not found")
+    if current_user.role == "superuser" and store.merchant_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
 
     enforce_store_scope(current_user, store.id)
 
@@ -85,6 +87,10 @@ async def list_supply_requests(
         query = query.filter(SupplyRequest.requested_by == current_user.id)
     elif current_user.role == "admin" and current_user.store_id is not None:
         query = query.filter(SupplyRequest.store_id == current_user.store_id)
+    elif current_user.role == "superuser":
+        query = query.join(Store, Store.id == SupplyRequest.store_id).filter(
+            Store.merchant_id == current_user.id
+        )
 
     if store_id is not None:
         enforce_store_scope(current_user, store_id)
@@ -111,6 +117,8 @@ async def get_supply_request(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot view other clerks' requests")
 
     enforce_store_scope(current_user, supply_request.store_id)
+    if current_user.role == "superuser" and supply_request.store.merchant_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Request not in your account")
     return SupplyRequestResponse.model_validate(supply_request)
 
 
@@ -190,6 +198,10 @@ async def get_pending_requests(
     query = db.query(SupplyRequest).filter(SupplyRequest.status == SupplyRequestStatus.PENDING)
     if current_user.store_id is not None:
         query = query.filter(SupplyRequest.store_id == current_user.store_id)
+    elif current_user.role == "superuser":
+        query = query.join(Store, Store.id == SupplyRequest.store_id).filter(
+            Store.merchant_id == current_user.id
+        )
 
     requests = query.order_by(SupplyRequest.created_at.desc()).all()
     return [SupplyRequestResponse.model_validate(req) for req in requests]

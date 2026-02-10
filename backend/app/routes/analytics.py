@@ -52,6 +52,8 @@ async def store_performance(
     )
     if current_user.role == "admin" and current_user.store_id is not None:
         query = query.filter(Store.id == current_user.store_id)
+    if current_user.role == "superuser":
+        query = query.filter(Store.merchant_id == current_user.id)
 
     query = query.limit(limit)
     rows = query.all()
@@ -87,6 +89,8 @@ async def top_products(
     )
     if current_user.role == "admin" and current_user.store_id is not None:
         query = query.filter(Sale.store_id == current_user.store_id)
+    if current_user.role == "superuser":
+        query = query.join(Store, Store.id == Sale.store_id).filter(Store.merchant_id == current_user.id)
 
     query = query.limit(limit)
     rows = query.all()
@@ -122,6 +126,8 @@ async def slow_movers(
     )
     if current_user.role == "admin" and current_user.store_id is not None:
         query = query.filter(Sale.store_id == current_user.store_id)
+    if current_user.role == "superuser":
+        query = query.join(Store, Store.id == Sale.store_id).filter(Store.merchant_id == current_user.id)
 
     query = query.limit(limit)
     rows = query.all()
@@ -161,6 +167,8 @@ async def payment_trend(
     )
     if current_user.role == "admin" and current_user.store_id is not None:
         query = query.filter(Inventory.store_id == current_user.store_id)
+    if current_user.role == "superuser":
+        query = query.join(Store, Store.id == Inventory.store_id).filter(Store.merchant_id == current_user.id)
 
     rows = query.group_by(date_col).order_by(date_col.desc()).limit(days).all()
     return [
@@ -183,6 +191,13 @@ async def financial_summary(
     if current_user.role == "admin" and current_user.store_id is not None:
         sales_query = sales_query.filter(Sale.store_id == current_user.store_id)
         expense_query = expense_query.filter(Expense.store_id == current_user.store_id)
+    if current_user.role == "superuser":
+        sales_query = sales_query.join(Store, Store.id == Sale.store_id).filter(
+            Store.merchant_id == current_user.id
+        )
+        expense_query = expense_query.join(Store, Store.id == Expense.store_id).filter(
+            Store.merchant_id == current_user.id
+        )
 
     total_sales, total_cost = sales_query.first()
     total_expenses = expense_query.scalar()
@@ -210,6 +225,8 @@ async def expenses_by_category(
     query = db.query(Expense.category, func.sum(Expense.amount).label("total_amount")).group_by(Expense.category)
     if current_user.role == "admin" and current_user.store_id is not None:
         query = query.filter(Expense.store_id == current_user.store_id)
+    if current_user.role == "superuser":
+        query = query.join(Store, Store.id == Expense.store_id).filter(Store.merchant_id == current_user.id)
 
     rows = query.order_by(func.sum(Expense.amount).desc()).all()
     return [ExpenseCategoryItem(category=row.category, total_amount=_sum_or_zero(row.total_amount)) for row in rows]
@@ -229,6 +246,8 @@ async def sales_trend(
     )
     if current_user.role == "admin" and current_user.store_id is not None:
         query = query.filter(Sale.store_id == current_user.store_id)
+    if current_user.role == "superuser":
+        query = query.join(Store, Store.id == Sale.store_id).filter(Store.merchant_id == current_user.id)
     rows = query.group_by(date_col).order_by(date_col.desc()).limit(days).all()
     return [
         SalesTrendPoint(

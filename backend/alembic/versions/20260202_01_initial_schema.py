@@ -20,6 +20,7 @@ def upgrade() -> None:
     op.create_table(
         "stores",
         sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("merchant_id", sa.Integer(), nullable=True),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("location", sa.String(length=255), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
@@ -55,6 +56,7 @@ def upgrade() -> None:
     op.create_table(
         "products",
         sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("merchant_id", sa.Integer(), nullable=True),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("sku", sa.String(length=100), nullable=False),

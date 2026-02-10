@@ -39,6 +39,10 @@ async def create_purchase_order(
 
     if current_user.role == "admin":
         enforce_store_scope(current_user, payload.store_id)
+    if current_user.role == "superuser":
+        store = db.query(Store).filter(Store.id == payload.store_id).first()
+        if not store or store.merchant_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
 
     supplier = db.query(Supplier).filter(Supplier.id == payload.supplier_id).first()
     if not supplier:
@@ -99,7 +103,13 @@ async def list_purchase_orders(
     if current_user.role == "admin":
         store_id = current_user.store_id
     if store_id is not None:
+        if current_user.role == "superuser":
+            store = db.query(Store).filter(Store.id == store_id).first()
+            if not store or store.merchant_id != current_user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
         query = query.filter(PurchaseOrder.store_id == store_id)
+    elif current_user.role == "superuser":
+        query = query.filter(Store.merchant_id == current_user.id)
     if status_filter:
         query = query.filter(PurchaseOrder.status == status_filter.lower())
 
@@ -134,6 +144,10 @@ async def get_purchase_order(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase order not found")
     if current_user.role == "admin":
         enforce_store_scope(current_user, order.store_id)
+    if current_user.role == "superuser":
+        store = db.query(Store).filter(Store.id == order.store_id).first()
+        if not store or store.merchant_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Order not in your account")
     return PurchaseOrderResponse.model_validate(order)
 
 
@@ -149,6 +163,10 @@ async def update_purchase_order_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase order not found")
     if current_user.role == "admin":
         enforce_store_scope(current_user, order.store_id)
+    if current_user.role == "superuser":
+        store = db.query(Store).filter(Store.id == order.store_id).first()
+        if not store or store.merchant_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Order not in your account")
 
     new_status = payload.status.lower()
     if new_status not in {"draft", "sent", "received", "cancelled"}:

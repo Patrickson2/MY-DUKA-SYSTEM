@@ -23,21 +23,23 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
     invite_token_expire_hours: int = 48
+    reset_token_expire_hours: int = 2
 
     # Email Settings (optional - for later implementation)
     smtp_server: str = "smtp.gmail.com"
     smtp_port: int = 587
     email_from: str = "noreply@myduka.com"
     email_password: Optional[str] = None
+    sendgrid_api_key: Optional[str] = None
 
     # Frontend integration
-    frontend_base_url: str = "http://localhost:5173"
+    frontend_base_url: str = "http://localhost:3001"
 
     # Pagination
     items_per_page: int = 10
     low_stock_default_threshold: int = 20
     seed_demo_users: bool = True
-    cors_origins_raw: str = "http://localhost:3000,http://localhost:5173"
+    cors_origins_raw: str = "http://localhost:3000,http://localhost:3001,http://localhost:5173"
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 

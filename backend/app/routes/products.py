@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.dependencies import enforce_store_scope, get_current_user
 from app.models.user import User
+from app.models.store import Store
 from app.models.product import Product
 from app.models.stock_threshold import StockThreshold
 from app.schemas.notifications import StockThresholdResponse, StockThresholdUpsert
@@ -32,8 +33,23 @@ async def create_product(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to create products"
         )
-    # Check if SKU already exists
-    existing_product = db.query(Product).filter(Product.sku == product_data.sku).first()
+    merchant_id = None
+    if current_user.role == "superuser":
+        merchant_id = current_user.id
+    else:
+        if not current_user.store_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Store is required")
+        store = db.query(Store).filter(Store.id == current_user.store_id).first()
+        if not store:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Store not found")
+        merchant_id = store.merchant_id
+
+    # Check if SKU already exists for this merchant
+    existing_product = (
+        db.query(Product)
+        .filter(Product.sku == product_data.sku, Product.merchant_id == merchant_id)
+        .first()
+    )
     if existing_product:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -41,6 +57,7 @@ async def create_product(
         )
     
     new_product = Product(
+        merchant_id=merchant_id,
         name=product_data.name,
         description=product_data.description,
         sku=product_data.sku,
@@ -70,6 +87,16 @@ async def list_products(
     
     if active_only:
         query = query.filter(Product.is_active == True)
+    if current_user.role == "superuser":
+        query = query.filter(Product.merchant_id == current_user.id)
+    elif current_user.store_id:
+        store = db.query(Store).filter(Store.id == current_user.store_id).first()
+        if store:
+            query = query.filter(Product.merchant_id == store.merchant_id)
+        else:
+            query = query.filter(Product.id == -1)
+    elif current_user.role in {"admin", "clerk"}:
+        query = query.filter(Product.id == -1)
     
     products = query.offset(skip).limit(limit).all()
     return [ProductListResponse.model_validate(product) for product in products]
@@ -92,6 +119,12 @@ async def get_product(
             detail="Product not found"
         )
     
+    if current_user.role == "superuser" and product.merchant_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Product not in your account")
+    if current_user.role in {"admin", "clerk"} and current_user.store_id:
+        store = db.query(Store).filter(Store.id == current_user.store_id).first()
+        if store and product.merchant_id != store.merchant_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Product not in your store")
     return ProductResponse.model_validate(product)
 
 
@@ -119,10 +152,20 @@ async def update_product(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin or merchant can update products"
         )
+    if current_user.role == "superuser" and product.merchant_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Product not in your account")
+    if current_user.role == "admin" and current_user.store_id:
+        store = db.query(Store).filter(Store.id == current_user.store_id).first()
+        if store and product.merchant_id != store.merchant_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Product not in your store")
 
     # Check if new SKU is unique
     if product_data.sku and product_data.sku != product.sku:
-        existing = db.query(Product).filter(Product.sku == product_data.sku).first()
+        existing = (
+            db.query(Product)
+            .filter(Product.sku == product_data.sku, Product.merchant_id == product.merchant_id)
+            .first()
+        )
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -172,6 +215,12 @@ async def delete_product(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found"
         )
+    if current_user.role == "superuser" and product.merchant_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Product not in your account")
+    if current_user.role == "admin" and current_user.store_id:
+        store = db.query(Store).filter(Store.id == current_user.store_id).first()
+        if store and product.merchant_id != store.merchant_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Product not in your store")
     
     db.delete(product)
     db.commit()
@@ -188,13 +237,18 @@ async def list_product_thresholds(
     """
     List low-stock thresholds for a product.
     """
-    _ = current_user
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found"
         )
+    if current_user.role == "superuser" and product.merchant_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Product not in your account")
+    if current_user.role in {"admin", "clerk"} and current_user.store_id is not None:
+        store = db.query(Store).filter(Store.id == current_user.store_id).first()
+        if store and product.merchant_id != store.merchant_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Product not in your store")
     query = db.query(StockThreshold).filter(StockThreshold.product_id == product_id)
     if current_user.role == "admin" and current_user.store_id is not None:
         query = query.filter(
@@ -230,10 +284,20 @@ async def upsert_product_threshold(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found"
         )
+    if current_user.role == "superuser" and product.merchant_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Product not in your account")
+    if current_user.role in {"admin", "clerk"} and current_user.store_id is not None:
+        store = db.query(Store).filter(Store.id == current_user.store_id).first()
+        if store and product.merchant_id != store.merchant_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Product not in your store")
 
     store_scope_id = payload.store_id
     if store_scope_id is not None:
         enforce_store_scope(current_user, store_scope_id)
+        if current_user.role == "superuser":
+            store = db.query(Store).filter(Store.id == store_scope_id).first()
+            if not store or store.merchant_id != current_user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
     elif current_user.role == "admin":
         store_scope_id = current_user.store_id
 

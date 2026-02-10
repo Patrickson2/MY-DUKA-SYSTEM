@@ -8,24 +8,30 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.core.dependencies import get_current_user
 from app.core.security import (
     create_access_token,
     create_refresh_token,
+    create_password_reset_token,
     hash_password,
     verify_password,
     verify_token,
 )
 from app.models.refresh_token import RefreshToken
+from app.models.store import Store
 from app.models.user import User
 from app.schemas.user import (
     AdminInviteRegisterRequest,
+    ForgotPasswordRequest,
     LoginRequest,
     RefreshTokenRequest,
+    ResetPasswordRequest,
     TokenResponse,
     UserCreate,
     UserResponse,
 )
+from app.services.email_service import build_password_reset_link, send_password_reset_email
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 logger = logging.getLogger(__name__)
@@ -76,7 +82,7 @@ def _issue_token_response(db: Session, user: User) -> TokenResponse:
 
 @router.post("/register", response_model=TokenResponse)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    """Self registration endpoint (creates clerk account)."""
+    """Self registration endpoint (creates merchant account)."""
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
@@ -87,7 +93,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         last_name=user_data.last_name,
         hashed_password=hash_password(user_data.password),
         phone=user_data.phone,
-        role="clerk",
+        role="superuser",
     )
     db.add(new_user)
     db.commit()
@@ -111,6 +117,11 @@ async def register_admin_from_invite(
     existing_user = db.query(User).filter(User.email == invited_email).first()
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+
+    if decoded.get("store_id"):
+        store = db.query(Store).filter(Store.id == decoded.get("store_id")).first()
+        if not store or store.merchant_id != decoded.get("sub"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid invite store")
 
     new_user = User(
         email=invited_email,
@@ -161,6 +172,33 @@ async def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     LOCKED_UNTIL.pop(credentials.email, None)
     logger.info("Successful login user_id=%s role=%s", user.id, user.role)
     return _issue_token_response(db, user)
+
+
+@router.post("/forgot-password")
+async def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Request a password reset link."""
+    user = db.query(User).filter(User.email == payload.email).first()
+    if user and user.is_active:
+        token = create_password_reset_token({"sub": user.id, "email": user.email})
+        reset_link = build_password_reset_link(token, settings.reset_token_expire_hours)
+        send_password_reset_email(user.email, reset_link, settings.reset_token_expire_hours)
+    return {"message": "If the email exists, a reset link has been sent."}
+
+
+@router.post("/reset-password")
+async def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Reset password using a valid reset token."""
+    decoded = verify_token(payload.token, expected_type="password_reset")
+    user_id = decoded.get("sub")
+    email = decoded.get("email")
+    user = db.query(User).filter(User.id == user_id, User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is deactivated")
+    user.hashed_password = hash_password(payload.new_password)
+    db.commit()
+    return {"message": "Password reset successfully"}
 
 
 @router.get("/me", response_model=UserResponse)

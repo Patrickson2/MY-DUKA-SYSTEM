@@ -36,7 +36,7 @@ from app.models import (
 
 # Import routers
 from app.routes import auth, users, products, inventory as inventory_routes
-from app.routes import analytics, dashboard, notifications as notifications_routes, reports, supply_requests
+from app.routes import analytics, dashboard, messages, notifications as notifications_routes, reports, supply_requests
 from app.routes import expenses, purchase_orders, returns, sales, stock_transfers, suppliers
 
 logger = logging.getLogger("myduka.api")
@@ -50,6 +50,18 @@ try:
     if not settings.debug and settings.secret_key == "your-secret-key-change-this-in-production":
         raise RuntimeError("SECRET_KEY must be set in non-debug environments.")
     Base.metadata.create_all(bind=engine)
+    if settings.database_driver == "sqlite":
+        with engine.begin() as conn:
+            store_cols = {
+                row[1] for row in conn.execute(text("PRAGMA table_info(stores)")).fetchall()
+            }
+            if "merchant_id" not in store_cols:
+                conn.execute(text("ALTER TABLE stores ADD COLUMN merchant_id INTEGER"))
+            product_cols = {
+                row[1] for row in conn.execute(text("PRAGMA table_info(products)")).fetchall()
+            }
+            if "merchant_id" not in product_cols:
+                conn.execute(text("ALTER TABLE products ADD COLUMN merchant_id INTEGER"))
     if settings.seed_demo_users:
         db = SessionLocal()
         try:
@@ -115,6 +127,7 @@ app.include_router(inventory_routes.router)
 app.include_router(supply_requests.router)
 app.include_router(reports.router)
 app.include_router(dashboard.router)
+app.include_router(messages.router)
 app.include_router(notifications_routes.router)
 app.include_router(suppliers.router)
 app.include_router(purchase_orders.router)

@@ -73,24 +73,30 @@ DEMO_SUPPLIERS = [
 ]
 
 
-def _ensure_default_store(db: Session) -> Store:
+def _ensure_default_store(db: Session, merchant_id: int | None) -> Store:
     store = db.query(Store).filter(Store.name == DEMO_STORE["name"]).first()
     if store:
+        if merchant_id and store.merchant_id is None:
+            store.merchant_id = merchant_id
+            db.commit()
+            db.refresh(store)
         return store
 
-    store = Store(**DEMO_STORE)
+    store = Store(merchant_id=merchant_id, **DEMO_STORE)
     db.add(store)
     db.commit()
     db.refresh(store)
     return store
 
 
-def _ensure_demo_products(db: Session) -> None:
+def _ensure_demo_products(db: Session, merchant_id: int | None) -> None:
     for payload in DEMO_PRODUCTS:
         exists = db.query(Product).filter(Product.sku == payload["sku"]).first()
         if exists:
+            if merchant_id and exists.merchant_id is None:
+                exists.merchant_id = merchant_id
             continue
-        db.add(Product(**payload))
+        db.add(Product(merchant_id=merchant_id, **payload))
     db.commit()
 
 
@@ -105,7 +111,21 @@ def _ensure_demo_suppliers(db: Session, store_id: int) -> None:
 
 def seed_demo_users(db: Session) -> None:
     """Ensure demo users and baseline data exist for local development."""
-    store = _ensure_default_store(db)
+    merchant = db.query(User).filter(User.email == DEMO_USERS[0]["email"]).first()
+    if not merchant:
+        merchant = User(
+            email=DEMO_USERS[0]["email"],
+            first_name=DEMO_USERS[0]["first_name"],
+            last_name=DEMO_USERS[0]["last_name"],
+            hashed_password=hash_password(DEMO_USERS[0]["password"]),
+            role=DEMO_USERS[0]["role"],
+            is_active=True,
+        )
+        db.add(merchant)
+        db.commit()
+        db.refresh(merchant)
+
+    store = _ensure_default_store(db, merchant.id if merchant else None)
 
     for user_data in DEMO_USERS:
         user = db.query(User).filter(User.email == user_data["email"]).first()
@@ -126,5 +146,5 @@ def seed_demo_users(db: Session) -> None:
         db.add(new_user)
 
     db.commit()
-    _ensure_demo_products(db)
+    _ensure_demo_products(db, merchant.id if merchant else None)
     _ensure_demo_suppliers(db, store.id)

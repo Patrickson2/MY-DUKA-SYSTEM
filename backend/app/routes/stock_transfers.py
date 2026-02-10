@@ -33,6 +33,13 @@ async def create_transfer(
 
     if current_user.role == "admin":
         enforce_store_scope(current_user, payload.from_store_id)
+    if current_user.role == "superuser":
+        from_store = db.query(Store).filter(Store.id == payload.from_store_id).first()
+        to_store = db.query(Store).filter(Store.id == payload.to_store_id).first()
+        if not from_store or not to_store:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Store not found")
+        if from_store.merchant_id != current_user.id or to_store.merchant_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
 
     product = db.query(Product).filter(Product.id == payload.product_id).first()
     if not product:
@@ -69,8 +76,16 @@ async def list_transfers(
     if current_user.role == "admin":
         store_id = current_user.store_id
     if store_id is not None:
+        if current_user.role == "superuser":
+            store = db.query(Store).filter(Store.id == store_id).first()
+            if not store or store.merchant_id != current_user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
         query = query.filter(
             (StockTransfer.from_store_id == store_id) | (StockTransfer.to_store_id == store_id)
+        )
+    elif current_user.role == "superuser":
+        query = query.join(Store, Store.id == StockTransfer.from_store_id).filter(
+            Store.merchant_id == current_user.id
         )
     if status_filter:
         query = query.filter(StockTransfer.status == status_filter.lower())
@@ -90,6 +105,10 @@ async def update_transfer_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transfer not found")
     if current_user.role == "admin":
         enforce_store_scope(current_user, transfer.from_store_id)
+    if current_user.role == "superuser":
+        store = db.query(Store).filter(Store.id == transfer.from_store_id).first()
+        if not store or store.merchant_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Transfer not in your account")
 
     new_status = payload.status.lower()
     if new_status not in {"pending", "approved", "completed", "cancelled"}:

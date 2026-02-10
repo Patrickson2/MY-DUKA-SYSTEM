@@ -1,7 +1,7 @@
 """
 SQLAlchemy models for Product entity
 """
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text
 from datetime import datetime, timezone
 from app.core.database import Base
 
@@ -17,6 +17,7 @@ class Product(Base):
     __tablename__ = "products"
     
     id = Column(Integer, primary_key=True, index=True)
+    merchant_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
     sku = Column(String(100), unique=True, index=True, nullable=False)

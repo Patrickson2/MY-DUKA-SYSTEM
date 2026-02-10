@@ -49,6 +49,7 @@ class User(Base):
     # Relationships
     inventory = relationship("Inventory", back_populates="created_by_user")
     supply_requests = relationship("SupplyRequest", back_populates="requested_by_user")
+    stores = relationship("Store", back_populates="merchant", foreign_keys="Store.merchant_id")
     
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"

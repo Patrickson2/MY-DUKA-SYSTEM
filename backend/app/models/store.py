@@ -1,7 +1,7 @@
 """
 SQLAlchemy models for Store entity
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.core.database import Base
@@ -18,6 +18,7 @@ class Store(Base):
     __tablename__ = "stores"
     
     id = Column(Integer, primary_key=True, index=True)
+    merchant_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     name = Column(String(255), nullable=False, index=True)
     location = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -34,6 +35,7 @@ class Store(Base):
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
     
     # Relationships
+    merchant = relationship("User", back_populates="stores", foreign_keys=[merchant_id])
     inventory = relationship("Inventory", back_populates="store")
     supply_requests = relationship("SupplyRequest", back_populates="store")
     

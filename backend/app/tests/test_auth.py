@@ -12,7 +12,7 @@ async def test_health_check_returns_healthy(client):
 
 
 async def test_register_then_login_and_get_me(client):
-    email = "clerk@myduka.com"
+    email = "merchant@myduka.com"
 
     register = await client.post(
         "/api/auth/register",
@@ -24,7 +24,7 @@ async def test_register_then_login_and_get_me(client):
         },
     )
     assert register.status_code == 200, register.text
-    assert register.json()["user"]["role"] == "clerk"
+    assert register.json()["user"]["role"] == "superuser"
 
     login = await client.post(
         "/api/auth/login",

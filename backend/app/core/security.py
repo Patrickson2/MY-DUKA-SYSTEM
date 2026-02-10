@@ -61,6 +61,14 @@ def create_invite_token(data: dict) -> str:
     return _encode_token(payload, expire, "invite")
 
 
+def create_password_reset_token(data: dict) -> str:
+    """Create a JWT password reset token."""
+    payload = data.copy()
+    payload["jti"] = uuid4().hex
+    expire = datetime.now(timezone.utc) + timedelta(hours=settings.reset_token_expire_hours)
+    return _encode_token(payload, expire, "password_reset")
+
+
 def verify_token(token: str, expected_type: Optional[str] = "access") -> dict:
     """Verify and decode a JWT token."""
     try:

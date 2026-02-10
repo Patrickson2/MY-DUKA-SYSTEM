@@ -5,6 +5,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import check_permission, enforce_store_scope, get_current_user
 from app.core.security import create_invite_token, hash_password, verify_password
@@ -47,6 +48,10 @@ async def create_user_by_admin(
             if user_data.store_id is None:
                 user_data.store_id = current_user.store_id
             enforce_store_scope(current_user, user_data.store_id)
+    if current_user.role == "superuser" and user_data.store_id is not None:
+        store = db.query(Store).filter(Store.id == user_data.store_id).first()
+        if not store or store.merchant_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
 
     new_user = User(
         email=user_data.email,
@@ -79,6 +84,8 @@ async def create_admin_invite(
         store = db.query(Store).filter(Store.id == payload.store_id).first()
         if not store:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Store not found")
+        if store.merchant_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
 
     token = create_invite_token(
         {
@@ -88,11 +95,15 @@ async def create_admin_invite(
             "store_id": payload.store_id,
         }
     )
-    invite_link = build_admin_invite_link(token)
-    send_admin_invite_email(payload.email, invite_link)
+    invite_link = build_admin_invite_link(token, settings.invite_token_expire_hours)
+    send_admin_invite_email(payload.email, invite_link, settings.invite_token_expire_hours)
 
     logger.info("Admin invite created actor_id=%s email=%s", current_user.id, payload.email)
-    return AdminInviteResponse(invite_token=token, invite_link=invite_link, expires_in_hours=48)
+    return AdminInviteResponse(
+        invite_token=token,
+        invite_link=invite_link,
+        expires_in_hours=settings.invite_token_expire_hours,
+    )
 
 
 @router.get("/", response_model=List[UserListResponse])
@@ -110,6 +121,15 @@ async def list_users(
 
     if current_user.role == "admin" and current_user.store_id is not None:
         query = query.filter(User.store_id == current_user.store_id)
+    if current_user.role == "superuser":
+        store_ids = [
+            row.id
+            for row in db.query(Store.id).filter(Store.merchant_id == current_user.id).all()
+        ]
+        if store_ids:
+            query = query.filter(User.store_id.in_(store_ids))
+        else:
+            query = query.filter(User.id == current_user.id)
 
     users = query.order_by(User.created_at.desc()).offset(skip).limit(limit).all()
     return [UserListResponse.model_validate(user) for user in users]

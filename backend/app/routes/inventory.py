@@ -36,6 +36,11 @@ async def record_inventory(
     store = db.query(Store).filter(Store.id == inventory_data.store_id).first()
     if not store:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Store not found")
+    if current_user.role == "superuser" and store.merchant_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
+    if store.merchant_id is not None and product.merchant_id is not None:
+        if store.merchant_id != product.merchant_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Product not in store account")
 
     enforce_store_scope(current_user, store.id)
 
@@ -96,9 +101,15 @@ async def list_inventory(
         query = query.filter(Inventory.created_by == current_user.id)
     elif current_user.role == "admin" and current_user.store_id is not None:
         query = query.filter(Inventory.store_id == current_user.store_id)
+    elif current_user.role == "superuser":
+        query = query.join(Store, Store.id == Inventory.store_id).filter(Store.merchant_id == current_user.id)
 
     if store_id is not None:
         enforce_store_scope(current_user, store_id)
+        if current_user.role == "superuser":
+            store = db.query(Store).filter(Store.id == store_id).first()
+            if not store or store.merchant_id != current_user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
         query = query.filter(Inventory.store_id == store_id)
 
     if payment_status is not None:
@@ -122,6 +133,8 @@ async def get_inventory(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot view other clerks' records")
 
     enforce_store_scope(current_user, record.store_id)
+    if current_user.role == "superuser" and record.store.merchant_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Record not in your account")
     return InventoryResponse.model_validate(record)
 
 
@@ -140,8 +153,26 @@ async def update_inventory(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot update other clerks' records")
 
     enforce_store_scope(current_user, record.store_id)
+    if current_user.role == "superuser" and record.store.merchant_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Record not in your account")
     old_stock = record.quantity_in_stock
     old_payment_status = record.payment_status
+
+    next_in_stock = (
+        inventory_data.quantity_in_stock
+        if inventory_data.quantity_in_stock is not None
+        else record.quantity_in_stock
+    )
+    next_spoilt = (
+        inventory_data.quantity_spoilt
+        if inventory_data.quantity_spoilt is not None
+        else record.quantity_spoilt
+    )
+    if next_in_stock + next_spoilt > record.quantity_received:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current stock plus spoilt items cannot exceed quantity received.",
+        )
 
     if inventory_data.quantity_in_stock is not None:
         record.quantity_in_stock = inventory_data.quantity_in_stock
@@ -195,6 +226,8 @@ async def update_payment_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inventory record not found")
 
     enforce_store_scope(current_user, record.store_id)
+    if current_user.role == "superuser" and record.store.merchant_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Record not in your account")
     old_payment_status = record.payment_status
     record.payment_status = payment_status
     create_inventory_event(
@@ -237,6 +270,8 @@ async def delete_inventory(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot delete other clerks' records")
 
     enforce_store_scope(current_user, record.store_id)
+    if current_user.role == "superuser" and record.store.merchant_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Record not in your account")
     create_inventory_event(
         db,
         inventory_id=record.id,
@@ -267,6 +302,10 @@ async def inventory_history_by_product(
     query = db.query(InventoryEvent).filter(InventoryEvent.product_id == product_id)
     if store_id is not None:
         enforce_store_scope(current_user, store_id)
+        if current_user.role == "superuser":
+            store = db.query(Store).filter(Store.id == store_id).first()
+            if not store or store.merchant_id != current_user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
         query = query.filter(InventoryEvent.store_id == store_id)
     elif current_user.role == "admin" and current_user.store_id is not None:
         query = query.filter(InventoryEvent.store_id == current_user.store_id)
@@ -284,6 +323,10 @@ async def get_paid_inventory(
     db: Session = Depends(get_db),
 ):
     enforce_store_scope(current_user, store_id)
+    if current_user.role == "superuser":
+        store = db.query(Store).filter(Store.id == store_id).first()
+        if not store or store.merchant_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
     records = (
         db.query(Inventory)
         .filter(Inventory.store_id == store_id, Inventory.payment_status == PaymentStatus.PAID)
@@ -299,6 +342,10 @@ async def get_unpaid_inventory(
     db: Session = Depends(get_db),
 ):
     enforce_store_scope(current_user, store_id)
+    if current_user.role == "superuser":
+        store = db.query(Store).filter(Store.id == store_id).first()
+        if not store or store.merchant_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
     records = (
         db.query(Inventory)
         .filter(Inventory.store_id == store_id, Inventory.payment_status == PaymentStatus.UNPAID)

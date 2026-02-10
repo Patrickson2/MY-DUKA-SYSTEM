@@ -25,6 +25,10 @@ async def create_sale(
 ):
     if current_user.role == "admin":
         enforce_store_scope(current_user, payload.store_id)
+    if current_user.role == "superuser":
+        store = db.query(Store).filter(Store.id == payload.store_id).first()
+        if not store or store.merchant_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
 
     store = db.query(Store).filter(Store.id == payload.store_id).first()
     if not store:
@@ -76,6 +80,12 @@ async def list_sales(
     if current_user.role == "admin":
         store_id = current_user.store_id
     if store_id is not None:
+        if current_user.role == "superuser":
+            store = db.query(Store).filter(Store.id == store_id).first()
+            if not store or store.merchant_id != current_user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Store not in your account")
         query = query.filter(Sale.store_id == store_id)
+    elif current_user.role == "superuser":
+        query = query.join(Store, Store.id == Sale.store_id).filter(Store.merchant_id == current_user.id)
     sales = query.order_by(Sale.created_at.desc()).all()
     return [SaleResponse.model_validate(item) for item in sales]

@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.inventory import StoreListResponse
 from app.schemas.product import ProductListResponse
@@ -30,6 +30,14 @@ class InventoryCreate(BaseModel):
     buying_price: float = Field(..., gt=0)
     selling_price: float = Field(..., gt=0)
     remarks: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_quantities(self):
+        if self.quantity_in_stock + self.quantity_spoilt > self.quantity_received:
+            raise ValueError(
+                "quantity_in_stock plus quantity_spoilt cannot exceed quantity_received"
+            )
+        return self
 
 
 class InventoryUpdate(BaseModel):
