@@ -15,7 +15,7 @@ async def test_create_supplier(client, db, user_factory, auth_headers):
 
     admin = user_factory(role="admin", store_id=store.id)
     payload = {"name": "Fresh Supplies", "store_id": store.id}
-    response = await client.post("/api/suppliers", json=payload, headers=auth_headers(admin))
+    response = await client.post("/api/suppliers/", json=payload, headers=auth_headers(admin))
 
     assert response.status_code == 200
     data = response.json()
@@ -56,7 +56,7 @@ async def test_receive_purchase_order_creates_inventory(client, db, user_factory
         ],
     }
     create_resp = await client.post(
-        "/api/purchase-orders", json=order_payload, headers=auth_headers(admin)
+        "/api/purchase-orders/", json=order_payload, headers=auth_headers(admin)
     )
     assert create_resp.status_code == 200
     order_id = create_resp.json()["id"]

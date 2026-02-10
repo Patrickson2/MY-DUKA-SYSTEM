@@ -105,7 +105,7 @@ async def test_logout_revokes_refresh_token(client, user_factory):
 
 async def test_superuser_can_invite_admin_and_register_with_token(client, db, user_factory, auth_headers):
     merchant = user_factory(email="merchant@myduka.com", role="superuser", password="merchant123")
-    store = Store(name="Downtown", location="Nairobi")
+    store = Store(name="Downtown", location="Nairobi", merchant_id=merchant.id)
     db.add(store)
     db.commit()
     db.refresh(store)

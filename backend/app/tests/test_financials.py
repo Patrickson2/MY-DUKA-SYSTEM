@@ -40,14 +40,14 @@ async def test_sales_and_financial_summary(client, db, user_factory, auth_header
     db.commit()
 
     sale_resp = await client.post(
-        "/api/sales",
+        "/api/sales/",
         json={"store_id": store.id, "product_id": product.id, "quantity": 2},
         headers=auth_headers(admin),
     )
     assert sale_resp.status_code == 200
 
     expense_resp = await client.post(
-        "/api/expenses",
+        "/api/expenses/",
         json={"store_id": store.id, "category": "Rent", "amount": 50},
         headers=auth_headers(admin),
     )
