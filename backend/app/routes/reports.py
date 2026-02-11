@@ -20,7 +20,6 @@ async def create_store(
     db: Session = Depends(get_db),
 ):
     """Create a new store (merchant only)."""
-    _ = current_user
     new_store = Store(
         merchant_id=current_user.id,
         name=store_data.name,

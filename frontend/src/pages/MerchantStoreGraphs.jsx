@@ -117,17 +117,41 @@ export default function MerchantStoreGraphs() {
     };
   }, [selectedStoreId]);
 
+  const storePaymentSummary = useMemo(() => {
+    const paidAmount = paidInventory.reduce(
+      (sum, item) => sum + (item.buying_price || 0) * (item.quantity_in_stock || 0),
+      0
+    );
+    const unpaidAmount = unpaidInventory.reduce(
+      (sum, item) => sum + (item.buying_price || 0) * (item.quantity_in_stock || 0),
+      0
+    );
+    const total = paidAmount + unpaidAmount;
+    return {
+      paid_amount: paidAmount,
+      unpaid_amount: unpaidAmount,
+      paid_percentage: total ? (paidAmount / total) * 100 : 0,
+      unpaid_percentage: total ? (unpaidAmount / total) * 100 : 0,
+    };
+  }, [paidInventory, unpaidInventory]);
+
   const paymentChartData = [
     {
       name: "Paid",
-      value: Number(dashboard.payment_summary.paid_percentage || 0),
-      amount: dashboard.payment_summary.paid_amount,
+      value: Number(
+        selectedStoreId ? storePaymentSummary.paid_percentage : dashboard.payment_summary.paid_percentage || 0
+      ),
+      amount: selectedStoreId ? storePaymentSummary.paid_amount : dashboard.payment_summary.paid_amount,
       color: "hsl(35,90%,55%)",
     },
     {
       name: "Unpaid",
-      value: Number(dashboard.payment_summary.unpaid_percentage || 0),
-      amount: dashboard.payment_summary.unpaid_amount,
+      value: Number(
+        selectedStoreId
+          ? storePaymentSummary.unpaid_percentage
+          : dashboard.payment_summary.unpaid_percentage || 0
+      ),
+      amount: selectedStoreId ? storePaymentSummary.unpaid_amount : dashboard.payment_summary.unpaid_amount,
       color: "#DC2626",
     },
   ];
@@ -257,6 +281,9 @@ export default function MerchantStoreGraphs() {
 
         <div className="rounded-xl border border-[#D1FAE5] bg-white p-6 shadow-sm">
           <h2 className="text-base font-semibold text-[#064E3B]">Payment Status Overview</h2>
+          <p className="mt-1 text-sm text-[#6B7280]">
+            {selectedStore ? `Showing ${selectedStore.name}` : "Showing all stores."}
+          </p>
           <div className="mt-4 grid grid-cols-1 items-center gap-6 md:grid-cols-2">
             <div className="h-56 rounded-lg bg-white p-2">
               <ResponsiveContainer width="100%" height="100%">
