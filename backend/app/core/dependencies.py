@@ -20,6 +20,7 @@ async def get_current_user(
     async def protected_route(current_user = Depends(get_current_user)):
         ...
     """
+    # Local import avoids circular dependency during app startup.
     from app.models.user import User
     
     # Extract token from Authorization header
@@ -88,6 +89,7 @@ def enforce_store_scope(current_user, resource_store_id: Optional[int]) -> None:
     Enforce that store-scoped admins can only access resources in their store.
     Superusers bypass this check.
     """
+    # Superusers can access all stores.
     if current_user.role == "superuser":
         return
     if current_user.role == "admin" and current_user.store_id is not None:

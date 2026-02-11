@@ -39,12 +39,14 @@ class Settings(BaseSettings):
     items_per_page: int = 10
     low_stock_default_threshold: int = 20
     seed_demo_users: bool = True
+    # Comma-separated list to allow configuring multiple origins via env.
     cors_origins_raw: str = "http://localhost:3000,http://localhost:3001,http://localhost:5173"
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
     @property
     def cors_origins(self) -> list[str]:
+        # Split and sanitize CORS origins from the raw string.
         return [
             origin.strip()
             for origin in self.cors_origins_raw.split(",")

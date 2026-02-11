@@ -28,6 +28,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def _encode_token(data: dict, expires_at: datetime, token_type: str) -> str:
+    # Normalize subject to string for JWT compatibility and attach token metadata.
     payload = data.copy()
     if "sub" in payload:
         payload["sub"] = str(payload["sub"])

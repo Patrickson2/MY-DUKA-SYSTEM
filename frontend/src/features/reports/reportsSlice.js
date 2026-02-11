@@ -1,3 +1,4 @@
+// Report state slice for dashboard charts, filters, and loading flags.
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
