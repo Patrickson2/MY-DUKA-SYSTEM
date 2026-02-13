@@ -1,131 +1,211 @@
-# MyDuka – Inventory & Reporting System
+# MyDuka
 
-MyDuka is a role-based inventory management and reporting platform for merchants, store admins, and clerks. It supports stock tracking, supply requests, payment status updates, and visual reporting for better decision-making.
+MyDuka is a role-based inventory and operations platform for merchants, admins, and clerks.  
+It helps teams manage stock, purchases, suppliers, sales, expenses, returns, and reporting from one system.
 
-## Authors
+## Team
+
 - Abdirahman Mohamed
 - Akam Novel
 - Christine Mumbi
 - Patrickson Mungai
 - Joshua Muriki
 
-## Key Features
-- Role-based access (Merchant, Admin, Clerk)
-- JWT authentication with refresh tokens
-- Inventory CRUD (stock, spoilt, pricing, payment status)
-- Supply request workflow (approve/decline + notes)
-- Store, product, supplier, purchase order, returns, sales, expense management
-- Analytics dashboards (performance, payment trends, top/slow movers)
-- In-app notifications and activity tracking
-- Responsive UI and charted reports
+## Core Features
+
+- JWT auth with access + refresh tokens
+- Role-based access (`superuser`, `admin`, `clerk`)
+- Multi-store inventory tracking with spoilage and payment status
+- Product, supplier, purchase order, stock transfer, returns, sales, and expense workflows
+- Clerk supply-request workflow with admin review
+- Admin and merchant analytics/reporting dashboards
+- Notifications and activity visibility
 
 ## Tech Stack
-**Frontend**
-- React + Vite
+
+### Frontend
+
+- React 18 + Vite
 - Redux Toolkit
+- React Router
+- Recharts
 - Tailwind CSS
-- Charting (JS plotting library)
 
-**Backend**
+### Backend
+
 - FastAPI
-- SQLAlchemy
+- SQLAlchemy 2
 - Alembic
-- PostgreSQL (production), SQLite (local)
+- PostgreSQL (production) / SQLite (local or tests)
 
-**Testing**
-- Vitest (frontend)
-- Pytest (backend)
+### Testing
 
-## Project Structure
-```
-frontend/    # React app
-backend/     # FastAPI app
+- Frontend: Vitest + Testing Library
+- Backend: Pytest
+
+## Repository Layout
+
+```text
+MYDUKA/
+├── frontend/   # React client
+└── backend/    # FastAPI API + Alembic migrations
 ```
 
-## Demo Credentials
-```
+## Demo Accounts
+
+```text
 Merchant: merchant@myduka.com / merchant123
 Admin:    admin@myduka.com / admin123
 Clerk:    clerk@myduka.com / clerk123
 ```
 
-## Local Setup
+## Local Development
 
-### 1) Backend
-```
+### 1) Backend setup
+
+```bash
 cd backend
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
 ```
 
-Create `.env` in `backend/` (example):
-```
-DATABASE_URL=sqlite:///./myduka.db
-SECRET_KEY=your-secret
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-REFRESH_TOKEN_EXPIRE_DAYS=7
+If your editor reports unresolved imports, point it to:
+
+```text
+backend/.venv/bin/python
 ```
 
-Run migrations (Postgres recommended):
-```
+Run migrations:
+
+```bash
 alembic upgrade head
 ```
 
-Seed demo users:
-```
-python -c "from app.models import user, inventory, product, store, supply_request, refresh_token, supplier, purchase_order, sale, expense, return_request, stock_transfer; from app.core.database import SessionLocal; from app.services.seed_service import seed_demo_users; db=SessionLocal(); seed_demo_users(db); db.close(); print('seeded')"
-```
+Start API:
 
-Start the API:
-```
+```bash
 uvicorn main:app --reload
 ```
 
-API docs:
-- http://localhost:8000/docs
-- http://localhost:8000/redoc
+Backend URLs:
 
-### 2) Frontend
-```
+- API base: `http://127.0.0.1:8000`
+- Docs: `http://127.0.0.1:8000/api/docs`
+- ReDoc: `http://127.0.0.1:8000/api/redoc`
+- Health: `http://127.0.0.1:8000/health`
+
+### 2) Frontend setup
+
+```bash
 cd frontend
 npm install
+```
+
+Create `frontend/.env`:
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
+Run frontend:
+
+```bash
 npm run dev
 ```
 
-Frontend runs at:
-- http://localhost:5173
+Frontend URL:
 
-### Environment Variables (Frontend)
-Create `frontend/.env`:
-```
-VITE_API_BASE_URL=http://localhost:8000
-```
+- `http://127.0.0.1:5173`
 
-## Tests
+## Environment Variables
 
-**Backend**
-```
+Use `backend/.env.example` as the source template.  
+At minimum, configure these values in production:
+
+- `DATABASE_URL`
+- `DATABASE_DRIVER=postgresql`
+- `SECRET_KEY`
+- `ACCESS_TOKEN_EXPIRE_MINUTES`
+- `REFRESH_TOKEN_EXPIRE_DAYS`
+- `FRONTEND_BASE_URL`
+- `CORS_ORIGINS_RAW`
+- `SEED_DEMO_USERS=false`
+- `SENDGRID_API_KEY` (optional but required for email features)
+- `EMAIL_FROM` (optional but required for email features)
+
+Important:
+
+- `CORS_ORIGINS_RAW` accepts comma-separated origins.
+- For first boot you may temporarily set `SEED_DEMO_USERS=true`, then switch it back to `false`.
+- Never commit real secrets in `.env` or `.env.example`.
+
+## Running Tests
+
+### Backend
+
+```bash
 cd backend
+source .venv/bin/activate
 pytest
 ```
 
-Run tests with SQLite (useful if Postgres is unavailable):
-```
+Run backend tests against SQLite:
+
+```bash
+cd backend
 DATABASE_URL="sqlite:///./myduka_test.db" DATABASE_DRIVER=sqlite pytest
 ```
 
-**Frontend**
-```
+### Frontend
+
+```bash
 cd frontend
 npm run test
 ```
 
-## Deployment Notes
-- Use PostgreSQL in production (Neon recommended).
-- Keep backend + DB in the same region to reduce latency.
-- Use the Neon pooler URL for better connection handling.
-- Configure CORS and SECRET_KEY securely.
+## Deployment
+
+### Backend (Render)
+
+- Root directory: `backend`
+- Build command:
+  ```bash
+  pip install -r requirements.txt && alembic upgrade head
+  ```
+- Start command:
+  ```bash
+  uvicorn main:app --host 0.0.0.0 --port $PORT
+  ```
+- Python version: set via `backend/.python-version` (currently `3.12.3`)
+
+### Frontend (Vercel)
+
+- Framework: Vite
+- Environment variable:
+  - `VITE_API_BASE_URL=https://<your-render-backend-domain>`
+
+### Cross-service settings
+
+- In Render:
+  - `FRONTEND_BASE_URL=https://<your-vercel-domain>`
+  - `CORS_ORIGINS_RAW=https://<your-vercel-domain>`
+
+## API Reference
+
+Once backend is running, use:
+
+- `GET /api/docs` for Swagger UI
+- `GET /api/redoc` for ReDoc
+
+## Security Checklist
+
+- Rotate API keys immediately if exposed.
+- Keep all credentials only in environment variables.
+- Use a strong random `SECRET_KEY` in production.
+- Ensure CORS is set only to trusted frontend domains.
 
 ## License
+
 MIT
